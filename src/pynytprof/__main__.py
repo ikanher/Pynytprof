@@ -1,7 +1,9 @@
 import argparse
 import sys
 
-from . import tracer, reader
+from pathlib import Path
+
+from . import tracer, reader, convert
 
 
 def _verify(path: str) -> int:
@@ -19,9 +21,14 @@ def _verify(path: str) -> int:
     return 0
 
 
+def _convert_speedscope(src: str, dest: str | None) -> None:
+    out = dest or str(Path(src).with_suffix(".speedscope.json"))
+    convert.to_speedscope(src, out)
+
+
 def cli(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] not in {"profile", "verify"}:
+    if argv and argv[0] not in {"profile", "verify", "convert"}:
         argv.insert(0, "profile")
     p = argparse.ArgumentParser(prog="pynytprof")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -30,9 +37,18 @@ def cli(argv=None) -> int:
     pr.add_argument("args", nargs=argparse.REMAINDER)
     vr = sp.add_parser("verify")
     vr.add_argument("path")
+    cv = sp.add_parser("convert")
+    cv.add_argument("--speedscope", action="store_true")
+    cv.add_argument("src")
+    cv.add_argument("dest", nargs="?")
     args = p.parse_args(argv)
     if args.cmd == "verify":
         return _verify(args.path)
+    if args.cmd == "convert":
+        if args.speedscope:
+            _convert_speedscope(args.src, args.dest)
+            return 0
+        p.error("convert: no format specified")
     sys.argv = [args.script] + args.args
     tracer.profile_script(args.script)
     return 0
