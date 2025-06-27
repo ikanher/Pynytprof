@@ -16,6 +16,13 @@ static void put_u64le(unsigned char *p, uint64_t v) {
     put_u32le(p + 4, (uint32_t)(v >> 32));
 }
 
+static void write_header(FILE *fp) {
+    static const char hdr[16] = "NYTPROF\0"  /* 8 bytes */
+                                "\x05\x00\x00\x00"   /* major=5 */
+                                "\x00\x00\x00\x00";  /* minor=0 */
+    fwrite(hdr, 1, 16, fp);
+}
+
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     PyObject *path_obj, *files_obj, *defs_obj, *calls_obj, *lines_obj, *start_obj,
         *ticks_obj;
@@ -48,10 +55,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
-    static const char MAGIC[8] = "NYTPROF\0";
-    fwrite(MAGIC, 1, 8, fp);
-    uint32_t v[2] = {5, 0};
-    fwrite(v, sizeof v, 1, fp);
+    write_header(fp);
 
     unsigned char header[8];
     put_u32le(header, 5);

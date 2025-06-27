@@ -4,11 +4,13 @@ from pathlib import Path
 __all__ = ["read"]
 
 
+EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
+
+
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    expected = b"NYTPROF\x00" + b"\x05\x00\x00\x00" + b"\x00\x00\x00\x00"
-    if len(data) < 16 or data[:16] != expected:
-        raise ValueError("bad header")
+    if len(data) < 16 or data[:16] != EXPECT:
+        raise ValueError("bad header magic or version")
     major, minor = struct.unpack_from("<II", data, 8)
     offset = 16
     result = {

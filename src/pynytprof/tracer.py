@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - absence is fine
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
 
-_MAGIC = b"NYTPROF\x00" + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
+_HDR = b"NYTPROF\x00" + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
@@ -40,35 +40,13 @@ def _match(path: str) -> bool:
     return any(fnmatch(path, pat) for pat in _filters)
 
 
-def _emit_stub_file(out_path: Path) -> None:
-    """Write a minimal valid NYTProf file with no records."""
-    stat = _script_path.stat()
-    a_payload = (
-        f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
-    )
-    f_payload = (
-        struct.pack("<IIII", 0, 0x10, stat.st_size, int(stat.st_mtime))
-        + str(_script_path).encode()
-        + b"\0"
-    )
-    with out_path.open("wb") as f:
-        f.write(_MAGIC)
-        f.write(_chunk("H", struct.pack("<II", 5, 0)))
-        f.write(_chunk("A", a_payload))
-        f.write(_chunk("F", f_payload))
-        f.write(_chunk("S", b""))
-        f.write(_chunk("E", b""))
 
 
 def _chunk(tok: str, payload: bytes) -> bytes:
     return tok.encode() + struct.pack("<I", len(payload)) + payload
 
 
-def _write_nytprof_py(out_path: Path) -> None:
-    if not _results:
-        _emit_stub_file(out_path)
-        return
-
+def _write_nytprof(out_path: Path) -> None:
     stat = _script_path.stat()
     a_payload = f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
     f_payload = (
@@ -80,12 +58,8 @@ def _write_nytprof_py(out_path: Path) -> None:
         struct.pack("<IIIQQ", 0, line, rec[0], rec[1] // 100, rec[2] // 100)
         for line, rec in sorted(_results.items())
     ]
-    if not s_records:
-        _emit_stub_file(out_path)
-        return
-
     with out_path.open("wb") as f:
-        f.write(_MAGIC)
+        f.write(_HDR)
         f.write(_chunk("H", struct.pack("<II", 5, 0)))
         f.write(_chunk("A", a_payload))
         f.write(_chunk("F", f_payload))
@@ -94,10 +68,10 @@ def _write_nytprof_py(out_path: Path) -> None:
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
-    if _cwrite is not None:
+    if _cwrite is not None and not os.environ.get("PYNTP_FORCE_PY"):
         _cwrite.write(str(out_path), files, defs, calls, lines, _start_ns, TICKS_PER_SEC)
     else:
-        _write_nytprof_py(out_path)
+        _write_nytprof(out_path)
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
@@ -163,7 +137,7 @@ def profile_script(path: str) -> None:
         runpy.run_path(str(_script_path), run_name="__main__")
     finally:
         sys.settrace(None)
-        _write_nytprof_py(out_path)
+        _write_nytprof(out_path)
 
 
 def profile(path: str) -> None:
