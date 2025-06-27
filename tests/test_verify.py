@@ -11,7 +11,8 @@ def test_verify(tmp_path):
     subprocess.check_call([
         sys.executable,
         "-m",
-        "pynytprof.tracer",
+        "pynytprof",
+        "profile",
         str(script),
     ], cwd=tmp_path, env=env)
     out = tmp_path / "nytprof.out"

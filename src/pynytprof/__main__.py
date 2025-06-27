@@ -19,7 +19,7 @@ def _verify(path: str) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def cli(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] not in {"profile", "verify"}:
         argv.insert(0, "profile")
@@ -27,14 +27,16 @@ def main(argv=None) -> int:
     sp = p.add_subparsers(dest="cmd", required=True)
     pr = sp.add_parser("profile")
     pr.add_argument("script")
+    pr.add_argument("args", nargs=argparse.REMAINDER)
     vr = sp.add_parser("verify")
     vr.add_argument("path")
     args = p.parse_args(argv)
     if args.cmd == "verify":
         return _verify(args.path)
+    sys.argv = [args.script] + args.args
     tracer.profile_script(args.script)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli())

@@ -3,7 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests import reader
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from pynytprof import reader
 
 SCRIPT = Path(__file__).with_name("example_script.py")
 

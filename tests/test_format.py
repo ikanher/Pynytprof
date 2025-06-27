@@ -4,7 +4,8 @@ import sys
 import time
 import os
 
-from tests import reader
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from pynytprof import reader
 
 
 def test_format(tmp_path):

@@ -29,5 +29,5 @@ The verify command prints a short summary and exits with
 an error status if the file is corrupted.
 
 ```bash
-python -m pynytprof verify nytprof.out
+pynytprof verify nytprof.out
 ```
