@@ -4,8 +4,7 @@ set -euo pipefail
 sudo apt-get update -qq
 sudo apt-get install --no-install-recommends -y \
     build-essential python3-all-dev python3-venv \
-    libdevel-nytprof-perl perl-doc graphviz \
-    vim-common coreutils  # xxd and od
+    libdevel-nytprof-perl perl-doc graphviz vim-common
 
 python3 -m venv .venv
 source .venv/bin/activate

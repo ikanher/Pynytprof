@@ -1,16 +1,15 @@
 import struct
 from pathlib import Path
-from .tracer import _HDR
 
 __all__ = ["read"]
 
 
-EXPECTED = _HDR
+EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
 
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if data[:16] != EXPECTED:
+    if data[:16] != EXPECT:
         raise ValueError("bad header")
     offset = 16
     result = {
