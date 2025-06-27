@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - absence is fine
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
 
-MAGIC = b"NYTPROF"
+_MAGIC = b"NYTPROF\x00"
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
@@ -42,7 +42,7 @@ def _match(path: str) -> bool:
 
 def _emit_stub_file(out_path: Path) -> None:
     with out_path.open("wb") as f:
-        f.write(MAGIC + b"\0")
+        f.write(_MAGIC)
         f.write(struct.pack("<II", 5, 0))
         f.write(b"E" + struct.pack("<I", 0))
 
@@ -72,7 +72,7 @@ def _write_nytprof_py(out_path: Path) -> None:
         return
 
     with out_path.open("wb") as f:
-        f.write(MAGIC + b"\0")
+        f.write(_MAGIC)
         f.write(struct.pack("<II", 5, 0))
         f.write(_chunk("H", struct.pack("<II", 5, 0)))
         f.write(_chunk("A", a_payload))

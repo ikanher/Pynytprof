@@ -48,10 +48,12 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
-    unsigned char header[16];
-    memcpy(header, "NYTPROF\0", 8);
-    put_u32le(header + 8, 5);
-    put_u32le(header + 12, 0);
+    static const char MAGIC[8] = "NYTPROF\0";
+    fwrite(MAGIC, 1, 8, fp);
+
+    unsigned char header[8];
+    put_u32le(header, 5);
+    put_u32le(header + 4, 0);
 
     unsigned char hchunk[13];
     hchunk[0] = 'H';
@@ -220,7 +222,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     echunk[0] = 'E';
     put_u32le(echunk + 1, 0);
 
-    fwrite(header, 16, 1, fp);
+    fwrite(header, 8, 1, fp);
     fwrite(hchunk, 13, 1, fp);
     fwrite(achunk, 5 + a_len, 1, fp);
     fwrite(fchunk, 5 + f_len, 1, fp);

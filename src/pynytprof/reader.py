@@ -6,7 +6,7 @@ __all__ = ["read"]
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if len(data) < 16 or not data.startswith(b"NYTPROF\0"):
+    if len(data) < 16 or data[:8] != b"NYTPROF\x00":
         raise ValueError("bad magic")
     offset = 8
     major, minor = struct.unpack_from("<II", data, offset)
