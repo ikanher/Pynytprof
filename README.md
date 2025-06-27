@@ -6,9 +6,16 @@ HTML until our own UI exists.
 
 Quick start
 ```bash
+
+```bash
+# dev install
 python -m pip install -e .
-python -m pynytprof.tracer tests/example_script.py
-nytprofhtml -f nytprof.out                    # Perl tool
+
+# record a profile
+pynytprof tests/example_script.py
+
+# generate HTML with Perl's tooling
+nytprofhtml -f nytprof.out
 xdg-open nytprof/index.html
 ```
 
