@@ -23,12 +23,12 @@ static void write_header(FILE *fp) {
 }
 
 static void write_H_chunk(FILE *fp) {
-    unsigned char h[13];
-    h[0] = 'H';
-    put_u32le(h + 1, 8);   /* payload length */
-    put_u32le(h + 5, 5);   /* major version */
-    put_u32le(h + 9, 0);   /* minor version */
-    fwrite(h, 1, sizeof h, fp);
+    static const unsigned char H[13] =
+        "H" /* token */
+        "\x08\x00\x00\x00" /* u32 length = 8 */
+        "\x05\x00\x00\x00" /* u32 major = 5 */
+        "\x00\x00\x00\x00"; /* u32 minor = 0 */
+    fwrite(H, 1, sizeof H, fp);
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
