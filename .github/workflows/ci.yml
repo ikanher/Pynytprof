@@ -9,5 +9,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y libdevel-nytprof-perl
       - run: python -m pip install -e .[dev] pytest
       - run: pytest -q
+      - name: profile & render
+        run: |
+          python -m pynytprof.tracer tests/example_script.py
+          nytprofhtml -f nytprof.out -o report
+          test -f report/index.html
+
