@@ -31,3 +31,10 @@ an error status if the file is corrupted.
 ```bash
 pynytprof verify nytprof.out
 ```
+
+## Flamegraph output
+Use `convert` to generate Speedscope JSON and view results in a browser.
+
+```bash
+pynytprof convert --speedscope nytprof.out
+```
