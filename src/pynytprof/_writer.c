@@ -23,12 +23,11 @@ static void write_header(FILE *fp) {
 }
 
 static void write_H_chunk(FILE *fp) {
-    const unsigned char h[1 + 4 + 8] = {
-        'H',
-        8, 0, 0, 0, /* length */
-        5, 0, 0, 0, /* major */
-        0, 0, 0, 0  /* minor */
-    };
+    unsigned char h[13];
+    h[0] = 'H';
+    put_u32le(h + 1, 8);   /* payload length */
+    put_u32le(h + 5, 5);   /* major version */
+    put_u32le(h + 9, 0);   /* minor version */
     fwrite(h, 1, sizeof h, fp);
 }
 

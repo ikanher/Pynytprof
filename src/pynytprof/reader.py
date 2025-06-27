@@ -5,13 +5,16 @@ __all__ = ["read"]
 
 
 EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
+H_CHUNK = b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
 
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
     if data[:16] != EXPECT:
         raise ValueError("bad header")
-    offset = 16
+    if data[16:29] != H_CHUNK:
+        raise ValueError("bad H chunk")
+    offset = 29
     result = {
         "header": (5, 0),
         "attrs": {},
@@ -33,13 +36,7 @@ def read(path: str) -> dict:
         payload = data[offset:offset + length]
         offset += length
 
-        if tok == "H":
-            if length != 8:
-                raise ValueError("bad H length")
-            h_major, h_minor = struct.unpack_from("<II", payload)
-            if (h_major, h_minor) != (5, 0):
-                raise ValueError("header mismatch")
-        elif tok == "A":
+        if tok == "A":
             if not payload or payload[-1] != 0:
                 raise ValueError("attrs not nul terminated")
             attrs = payload[:-1].split(b"\0")
