@@ -15,6 +15,7 @@ def test_format(tmp_path):
     env['PYTHONPATH'] = str(Path(__file__).resolve().parents[1] / 'src')
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', str(script)], cwd=tmp_path, env=env)
     assert out.exists()
+    assert out.open('rb').read(8) == b"NYTPROF\x00"
     start = time.perf_counter()
     data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000

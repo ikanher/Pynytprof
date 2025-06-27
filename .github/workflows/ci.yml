@@ -10,7 +10,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: sudo apt-get update
-      - run: sudo apt-get install -y libdevel-nytprof-perl
+      - run: sudo apt-get install --no-install-recommends -y libdevel-nytprof-perl
       - run: python -m pip install -e .[dev] pytest
       - run: pytest -q
       - name: profile & render
