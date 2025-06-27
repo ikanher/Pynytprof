@@ -24,8 +24,8 @@ def _verify(path: str) -> int:
 
 
 def _convert_speedscope(src: str, dest: str | None) -> None:
-    out = dest or str(Path(src).with_suffix(".speedscope.json"))
-    convert.to_speedscope(src, out)
+    out = convert.to_speedscope(src, dest)
+    print(out)
 
 
 def cli(argv=None) -> int:
