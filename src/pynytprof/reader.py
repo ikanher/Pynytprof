@@ -9,12 +9,11 @@ EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if len(data) < 16 or data[:16] != EXPECT:
-        raise ValueError("bad header magic or version")
-    major, minor = struct.unpack_from("<II", data, 8)
+    if data[:16] != EXPECT:
+        raise ValueError("bad header")
     offset = 16
     result = {
-        "header": (major, minor),
+        "header": (5, 0),
         "attrs": {},
         "files": {},
         "records": [],
@@ -38,7 +37,7 @@ def read(path: str) -> dict:
             if length != 8:
                 raise ValueError("bad H length")
             h_major, h_minor = struct.unpack_from("<II", payload)
-            if (h_major, h_minor) != (major, minor):
+            if (h_major, h_minor) != (5, 0):
                 raise ValueError("header mismatch")
         elif tok == "A":
             if not payload or payload[-1] != 0:

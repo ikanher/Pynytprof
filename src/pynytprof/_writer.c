@@ -17,9 +17,8 @@ static void put_u64le(unsigned char *p, uint64_t v) {
 }
 
 static void write_header(FILE *fp) {
-    static const char hdr[16] = "NYTPROF\0"  /* 8 bytes */
-                                "\x05\x00\x00\x00"   /* major=5 */
-                                "\x00\x00\x00\x00";  /* minor=0 */
+    static const unsigned char hdr[16] =
+        "NYTPROF\0" "\x05\x00\x00\x00" "\x00\x00\x00\x00";
     fwrite(hdr, 1, 16, fp);
 }
 
@@ -56,10 +55,6 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
     write_header(fp);
-
-    unsigned char header[8];
-    put_u32le(header, 5);
-    put_u32le(header + 4, 0);
 
     unsigned char hchunk[13];
     hchunk[0] = 'H';
@@ -228,7 +223,6 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     echunk[0] = 'E';
     put_u32le(echunk + 1, 0);
 
-    fwrite(header, 8, 1, fp);
     fwrite(hchunk, 13, 1, fp);
     fwrite(achunk, 5 + a_len, 1, fp);
     fwrite(fchunk, 5 + f_len, 1, fp);
