@@ -23,6 +23,10 @@ def test_format(tmp_path, extra_env):
     assert out.open('rb').read(16) == EXPECT
     header = out.open('rb').read(29)
     assert header[16:29] == b'H\x08\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00'
+    expected = b'H\x08\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00'
+    with out.open('rb') as f:
+        f.seek(16)
+        assert f.read(13) == expected
     start = time.perf_counter()
     data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000

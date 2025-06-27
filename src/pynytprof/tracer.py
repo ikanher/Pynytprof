@@ -60,12 +60,28 @@ def _write_nytprof(out_path: Path) -> None:
         for line, rec in sorted(_results.items())
     ]
     with out_path.open("wb") as f:
+        if os.getenv("PYNTP_DEBUG"):
+            print("[DBG] chunk HDR len=16", file=sys.stderr)
         f.write(_HDR)
+        if os.getenv("PYNTP_DEBUG"):
+            print("[DBG] chunk H len=8", file=sys.stderr)
         f.write(_H_CHUNK)
+        if os.getenv("PYNTP_DEBUG"):
+            print(f"[DBG] chunk A len={len(a_payload)}", file=sys.stderr)
         f.write(_chunk("A", a_payload))
+        if os.getenv("PYNTP_DEBUG"):
+            print(f"[DBG] chunk F len={len(f_payload)}", file=sys.stderr)
         f.write(_chunk("F", f_payload))
+        if os.getenv("PYNTP_DEBUG"):
+            print(f"[DBG] chunk S len={len(b''.join(s_records))}", file=sys.stderr)
         f.write(_chunk("S", b"".join(s_records)))
+        if os.getenv("PYNTP_DEBUG"):
+            print("[DBG] chunk E len=0", file=sys.stderr)
         f.write(_chunk("E", b""))
+
+    import subprocess, shutil
+    if shutil.which("xxd"):
+        subprocess.run(["xxd", "-g1", "-l64", out_path], text=True)
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
