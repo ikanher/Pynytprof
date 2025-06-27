@@ -38,3 +38,6 @@ Use `convert` to generate Speedscope JSON and view results in a browser.
 ```bash
 pynytprof convert --speedscope nytprof.out
 ```
+
+## Prerequisites
+Debian/Ubuntu:  sudo ./setup.sh
