@@ -1,6 +1,8 @@
 import struct
 from pathlib import Path
 
+__all__ = ["read"]
+
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
