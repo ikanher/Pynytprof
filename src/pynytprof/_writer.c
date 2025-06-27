@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void dbg_chunk(char tok, uint32_t len) {
+    if (getenv("PYNTP_DEBUG"))
+        fprintf(stderr, "[DBG] write chunk %c len=%u\n", tok, len);
+}
+
 static void put_u32le(unsigned char *p, uint32_t v) {
     p[0] = (unsigned char)(v & 0xFF);
     p[1] = (unsigned char)((v >> 8) & 0xFF);
@@ -28,6 +33,7 @@ static void write_H_chunk(FILE *fp) {
         "\x08\x00\x00\x00" /* u32 length = 8 */
         "\x05\x00\x00\x00" /* u32 major = 5 */
         "\x00\x00\x00\x00"; /* u32 minor = 0 */
+    dbg_chunk('H', 8);
     fwrite(H, 1, sizeof H, fp);
 }
 
@@ -227,11 +233,17 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     echunk[0] = 'E';
     put_u32le(echunk + 1, 0);
 
+    dbg_chunk('A', (uint32_t)a_len);
     fwrite(achunk, 5 + a_len, 1, fp);
+    dbg_chunk('F', (uint32_t)f_len);
     fwrite(fchunk, 5 + f_len, 1, fp);
+    dbg_chunk('D', (uint32_t)d_len);
     fwrite(dchunk, 5 + d_len, 1, fp);
+    dbg_chunk('C', (uint32_t)c_len);
     fwrite(cchunk, 5 + c_len, 1, fp);
+    dbg_chunk('S', (uint32_t)s_len);
     fwrite(schunk, 5 + s_len, 1, fp);
+    dbg_chunk('E', 0);
     fwrite(echunk, 5, 1, fp);
 
     free(achunk);

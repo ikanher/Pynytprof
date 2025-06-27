@@ -11,6 +11,10 @@ def test_callgraph(tmp_path, force_py):
     script = Path(__file__).with_name("cg_example.py")
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
+    try:
+        import pynytprof._tracer  # type: ignore
+    except Exception:
+        pytest.skip("_tracer missing")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     if force_py:
