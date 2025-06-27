@@ -16,3 +16,9 @@ pynytprof = "pynytprof.tracer:cli"
 
 [tool.black]
 line-length = 99
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.extension."pynytprof._cwrite"]
+sources = ["src/pynytprof/_writer.c"]

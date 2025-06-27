@@ -10,6 +10,11 @@ from pathlib import Path
 from types import FrameType
 from typing import Any, Dict, List
 
+try:  # optional C acceleration
+    from . import _cwrite
+except Exception:  # pragma: no cover - absence is fine
+    _cwrite = None
+
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
 
@@ -33,7 +38,7 @@ def _chunk(tok: str, payload: bytes) -> bytes:
     return tok.encode() + struct.pack("<I", len(payload)) + payload
 
 
-def _write_nytprof(out_path: Path) -> None:
+def _write_nytprof_py(out_path: Path) -> None:
     if not _results:
         _emit_stub_file(out_path)
         return
@@ -63,6 +68,25 @@ def _write_nytprof(out_path: Path) -> None:
         f.write(_chunk("F", f_payload))
         f.write(_chunk("S", b"".join(s_records)))
         f.write(_chunk("E", b""))
+
+
+def _write_nytprof(out_path: Path) -> None:
+    if _cwrite is not None:
+        stat = _script_path.stat()
+        records = [
+            (line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())
+        ]
+        _cwrite.write(
+            str(out_path),
+            str(_script_path),
+            stat.st_size,
+            int(stat.st_mtime),
+            _start_ns,
+            TICKS_PER_SEC,
+            records,
+        )
+    else:
+        _write_nytprof_py(out_path)
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
