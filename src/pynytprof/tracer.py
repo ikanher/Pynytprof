@@ -41,9 +41,23 @@ def _match(path: str) -> bool:
 
 
 def _emit_stub_file(out_path: Path) -> None:
+    """Write a minimal valid NYTProf file with no records."""
+    stat = _script_path.stat()
+    a_payload = (
+        f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
+    )
+    f_payload = (
+        struct.pack("<IIII", 0, 0x10, stat.st_size, int(stat.st_mtime))
+        + str(_script_path).encode()
+        + b"\0"
+    )
     with out_path.open("wb") as f:
         f.write(_MAGIC)
-        f.write(b"E" + struct.pack("<I", 0))
+        f.write(_chunk("H", struct.pack("<II", 5, 0)))
+        f.write(_chunk("A", a_payload))
+        f.write(_chunk("F", f_payload))
+        f.write(_chunk("S", b""))
+        f.write(_chunk("E", b""))
 
 
 def _chunk(tok: str, payload: bytes) -> bytes:
