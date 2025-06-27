@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import runpy
 import struct
 import sys
 import time
 from pathlib import Path
+from fnmatch import fnmatch
 from types import FrameType
 from typing import Any, Dict, List
 
@@ -29,6 +31,13 @@ _results: Dict[int, List[int]] = {}
 _start_ns: int = 0
 _script_path: Path
 _last_ns: int = 0
+_filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
+
+
+def _match(path: str) -> bool:
+    if not _filters:
+        return True
+    return any(fnmatch(path, pat) for pat in _filters)
 
 
 def _emit_stub_file(out_path: Path) -> None:
@@ -91,7 +100,10 @@ def _write_nytprof(out_path: Path) -> None:
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     global _last_ns
-    if frame.f_code.co_filename != str(_script_path):
+    path = str(Path(frame.f_code.co_filename).resolve())
+    if path != str(_script_path):
+        return _trace
+    if not _match(path):
         return _trace
     if event == "line":
         now = time.perf_counter_ns()
@@ -105,7 +117,8 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
 
 
 def profile_script(path: str) -> None:
-    global _script_path, _start_ns, _results, _last_ns
+    global _script_path, _start_ns, _results, _last_ns, _filters
+    _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(path).resolve()
     _start_ns = time.time_ns()
     if _ctrace is not None:
