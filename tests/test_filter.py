@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from pynytprof import reader
+from pynytprof.reader import read
 
 SCRIPT = Path(__file__).with_name("example_script.py")
 
@@ -24,7 +24,7 @@ def run(filter_val, tmp_path):
         env=env,
     )
     out = tmp_path / "nytprof.out"
-    return reader.read(str(out))
+    return read(str(out))
 
 
 def test_filter_excludes(tmp_path):

@@ -5,7 +5,7 @@ import time
 import os
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from pynytprof import reader
+from pynytprof.reader import read
 
 
 def test_format(tmp_path):
@@ -16,7 +16,7 @@ def test_format(tmp_path):
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', str(script)], cwd=tmp_path, env=env)
     assert out.exists()
     start = time.perf_counter()
-    data = reader.read(str(out))
+    data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000
     assert elapsed_ms < 50, f'reader too slow: {elapsed_ms:.2f} ms'
 
