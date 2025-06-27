@@ -81,19 +81,9 @@ def _write_nytprof_py(out_path: Path) -> None:
         f.write(_chunk("E", b""))
 
 
-def _write_nytprof(out_path: Path) -> None:
+def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
     if _cwrite is not None:
-        stat = _script_path.stat()
-        records = [(line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())]
-        _cwrite.write(
-            str(out_path),
-            str(_script_path),
-            stat.st_size,
-            int(stat.st_mtime),
-            _start_ns,
-            TICKS_PER_SEC,
-            records,
-        )
+        _cwrite.write(str(out_path), files, defs, calls, lines, _start_ns, TICKS_PER_SEC)
     else:
         _write_nytprof_py(out_path)
 
@@ -123,7 +113,35 @@ def profile_script(path: str) -> None:
     _start_ns = time.time_ns()
     if _ctrace is not None:
         _ctrace.enable(str(_script_path), _start_ns)
-        runpy.run_path(str(_script_path), run_name="__main__")
+        try:
+            runpy.run_path(str(_script_path), run_name="__main__")
+        finally:
+            defs, calls, lines = _ctrace.dump()
+            paths = set()
+            for d in defs:
+                paths.add(d[1])
+            for c in calls:
+                if c[0] is not None:
+                    paths.add(c[0])
+            for s in lines:
+                paths.add(s[0])
+            files = []
+            fid_map = {}
+            for i, p in enumerate(sorted(paths)):
+                fid_map[p] = i
+                st = Path(p).stat()
+                files.append((i, 0x10, st.st_size, int(st.st_mtime), p))
+            d_records = [(rec[0], fid_map[rec[1]], rec[2], rec[3], rec[4]) for rec in defs]
+            c_records = [
+                (fid_map.get(rec[0], 0), rec[1], rec[2], rec[3], rec[4])
+                for rec in calls
+            ]
+            s_records = [
+                (fid_map[rec[0]], rec[1], rec[2], rec[3], rec[4])
+                for rec in lines
+            ]
+            out_path = Path("nytprof.out")
+            _write_nytprof_vec(out_path, files, d_records, c_records, s_records)
         return
     _results = {}
     _last_ns = 0
@@ -133,7 +151,7 @@ def profile_script(path: str) -> None:
         runpy.run_path(str(_script_path), run_name="__main__")
     finally:
         sys.settrace(None)
-        _write_nytprof(out_path)
+        _write_nytprof_py(out_path)
 
 
 def profile(path: str) -> None:

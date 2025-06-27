@@ -17,50 +17,41 @@ static void put_u64le(unsigned char *p, uint64_t v) {
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
-    PyObject *path_obj, *script_obj, *size_obj, *mtime_obj,
-        *start_obj, *ticks_obj, *records_obj;
-    if (!PyArg_ParseTuple(args, "OOOOOOO", &path_obj, &script_obj, &size_obj,
-                          &mtime_obj, &start_obj, &ticks_obj, &records_obj))
+    PyObject *path_obj, *files_obj, *defs_obj, *calls_obj, *lines_obj, *start_obj,
+        *ticks_obj;
+    if (!PyArg_ParseTuple(args, "OOOOOOO", &path_obj, &files_obj, &defs_obj,
+                          &calls_obj, &lines_obj, &start_obj, &ticks_obj))
         return NULL;
 
     const char *path = PyUnicode_AsUTF8(path_obj);
-    const char *script = PyUnicode_AsUTF8(script_obj);
-    if (!path || !script)
+    if (!path)
         return NULL;
 
-    uint32_t size = (uint32_t)PyLong_AsUnsignedLongLong(size_obj);
-    uint32_t mtime = (uint32_t)PyLong_AsUnsignedLongLong(mtime_obj);
     uint64_t start_ns = PyLong_AsUnsignedLongLong(start_obj);
     uint64_t ticks_per_sec = PyLong_AsUnsignedLongLong(ticks_obj);
     if (PyErr_Occurred())
         return NULL;
 
-    PyObject *seq = PySequence_Fast(records_obj, "records must be a sequence");
-    if (!seq)
+    PyObject *files = PySequence_Fast(files_obj, "files");
+    PyObject *defs = PySequence_Fast(defs_obj, "defs");
+    PyObject *calls = PySequence_Fast(calls_obj, "calls");
+    PyObject *lines = PySequence_Fast(lines_obj, "lines");
+    if (!files || !defs || !calls || !lines)
         return NULL;
-    Py_ssize_t nrec = PySequence_Fast_GET_SIZE(seq);
+
+    Py_ssize_t nfiles = PySequence_Fast_GET_SIZE(files);
+    Py_ssize_t ndefs = PySequence_Fast_GET_SIZE(defs);
+    Py_ssize_t ncalls = PySequence_Fast_GET_SIZE(calls);
+    Py_ssize_t nlines = PySequence_Fast_GET_SIZE(lines);
 
     FILE *fp = fopen(path, "wb");
-    if (!fp) {
-        Py_DECREF(seq);
+    if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
-    }
 
     unsigned char header[16];
     memcpy(header, "NYTPROF\0", 8);
     put_u32le(header + 8, 5);
     put_u32le(header + 12, 0);
-
-    if (nrec == 0) {
-        unsigned char buf[21];
-        memcpy(buf, header, 16);
-        buf[16] = 'E';
-        put_u32le(buf + 17, 0);
-        fwrite(buf, 21, 1, fp);
-        fclose(fp);
-        Py_DECREF(seq);
-        Py_RETURN_NONE;
-    }
 
     unsigned char hchunk[13];
     hchunk[0] = 'H';
@@ -85,8 +76,13 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     put_u32le((unsigned char *)achunk + 1, (uint32_t)a_len);
     memcpy(achunk + 5, abuf, a_len);
 
-    size_t script_len = strlen(script);
-    size_t f_len = 16 + script_len + 1;
+    /* F chunk */
+    size_t f_len = 0;
+    for (Py_ssize_t i = 0; i < nfiles; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+        const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        f_len += 16 + strlen(pstr) + 1;
+    }
     char *fchunk = malloc(5 + f_len);
     if (!fchunk) {
         free(achunk);
@@ -95,57 +91,124 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     fchunk[0] = 'F';
     put_u32le((unsigned char *)fchunk + 1, (uint32_t)f_len);
     unsigned char *p = (unsigned char *)fchunk + 5;
-    put_u32le(p, 0);
-    p += 4;
-    put_u32le(p, 0x10);
-    p += 4;
-    put_u32le(p, size);
-    p += 4;
-    put_u32le(p, mtime);
-    p += 4;
-    memcpy(p, script, script_len);
-    p[script_len] = 0;
+    for (Py_ssize_t i = 0; i < nfiles; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+        uint32_t flags = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+        uint32_t size = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+        uint32_t mt = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 3));
+        const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        size_t l = strlen(pstr);
+        put_u32le(p, fid);
+        p += 4;
+        put_u32le(p, flags);
+        p += 4;
+        put_u32le(p, size);
+        p += 4;
+        put_u32le(p, mt);
+        p += 4;
+        memcpy(p, pstr, l);
+        p[l] = 0;
+        p += l + 1;
+    }
 
-    size_t s_len = (size_t)nrec * 28;
+    /* D chunk */
+    size_t d_len = 0;
+    for (Py_ssize_t i = 0; i < ndefs; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(defs, i);
+        const char *name = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        d_len += 16 + strlen(name) + 1;
+    }
+    char *dchunk = malloc(5 + d_len);
+    if (!dchunk) {
+        free(achunk);
+        free(fchunk);
+        goto mem_err;
+    }
+    dchunk[0] = 'D';
+    put_u32le((unsigned char *)dchunk + 1, (uint32_t)d_len);
+    p = (unsigned char *)dchunk + 5;
+    for (Py_ssize_t i = 0; i < ndefs; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(defs, i);
+        uint32_t sid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+        uint32_t sl = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+        uint32_t el = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 3));
+        const char *name = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        size_t l = strlen(name);
+        put_u32le(p, sid);
+        p += 4;
+        put_u32le(p, fid);
+        p += 4;
+        put_u32le(p, sl);
+        p += 4;
+        put_u32le(p, el);
+        p += 4;
+        memcpy(p, name, l);
+        p[l] = 0;
+        p += l + 1;
+    }
+
+    /* C chunk */
+    size_t c_len = (size_t)ncalls * 28;
+    char *cchunk = malloc(5 + c_len);
+    if (!cchunk) {
+        free(achunk);
+        free(fchunk);
+        free(dchunk);
+        goto mem_err;
+    }
+    cchunk[0] = 'C';
+    put_u32le((unsigned char *)cchunk + 1, (uint32_t)c_len);
+    p = (unsigned char *)cchunk + 5;
+    for (Py_ssize_t i = 0; i < ncalls; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(calls, i);
+        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+        uint32_t line = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+        uint32_t sid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+        uint64_t inc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(it, 3));
+        uint64_t exc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(it, 4));
+        inc /= 100;
+        exc /= 100;
+        put_u32le(p, fid);
+        p += 4;
+        put_u32le(p, line);
+        p += 4;
+        put_u32le(p, sid);
+        p += 4;
+        put_u64le(p, inc);
+        p += 8;
+        put_u64le(p, exc);
+        p += 8;
+    }
+
+    /* S chunk */
+    size_t s_len = (size_t)nlines * 28;
     char *schunk = malloc(5 + s_len);
     if (!schunk) {
         free(achunk);
         free(fchunk);
+        free(dchunk);
+        free(cchunk);
         goto mem_err;
     }
     schunk[0] = 'S';
     put_u32le((unsigned char *)schunk + 1, (uint32_t)s_len);
     p = (unsigned char *)schunk + 5;
-    for (Py_ssize_t i = 0; i < nrec; i++) {
-        PyObject *item = PySequence_Fast_GET_ITEM(seq, i);
-        if (!PyTuple_Check(item) || PyTuple_GET_SIZE(item) != 4) {
-            free(achunk);
-            free(fchunk);
-            free(schunk);
-            Py_DECREF(seq);
-            fclose(fp);
-            PyErr_SetString(PyExc_TypeError, "record tuple");
-            return NULL;
-        }
-        uint32_t line = (uint32_t)PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(item, 0));
-        uint32_t calls = (uint32_t)PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(item, 1));
-        uint64_t inc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(item, 2));
-        uint64_t exc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(item, 3));
-        if (PyErr_Occurred()) {
-            free(achunk);
-            free(fchunk);
-            free(schunk);
-            Py_DECREF(seq);
-            fclose(fp);
-            return NULL;
-        }
+    for (Py_ssize_t i = 0; i < nlines; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(lines, i);
+        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+        uint32_t line = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+        uint32_t calls_v = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+        uint64_t inc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(it, 3));
+        uint64_t exc = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(it, 4));
         inc /= 100;
         exc /= 100;
-        put_u32le(p, 0);
+        put_u32le(p, fid);
         p += 4;
         put_u32le(p, line);
         p += 4;
-        put_u32le(p, calls);
+        put_u32le(p, calls_v);
         p += 4;
         put_u64le(p, inc);
         p += 8;
@@ -161,19 +224,21 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     fwrite(hchunk, 13, 1, fp);
     fwrite(achunk, 5 + a_len, 1, fp);
     fwrite(fchunk, 5 + f_len, 1, fp);
+    fwrite(dchunk, 5 + d_len, 1, fp);
+    fwrite(cchunk, 5 + c_len, 1, fp);
     fwrite(schunk, 5 + s_len, 1, fp);
     fwrite(echunk, 5, 1, fp);
 
     free(achunk);
     free(fchunk);
+    free(dchunk);
+    free(cchunk);
     free(schunk);
     fclose(fp);
-    Py_DECREF(seq);
     Py_RETURN_NONE;
 
 mem_err:
     fclose(fp);
-    Py_DECREF(seq);
     return PyErr_NoMemory();
 }
 
