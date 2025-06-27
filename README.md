@@ -41,3 +41,9 @@ pynytprof convert --speedscope nytprof.out
 
 ## Prerequisites
 Debian/Ubuntu:  sudo ./setup.sh
+
+## Quick start
+```bash
+bash setup.sh      # installs dependencies, builds C extensions, runs tests
+source .venv/bin/activate
+```
