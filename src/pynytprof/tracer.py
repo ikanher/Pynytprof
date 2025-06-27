@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - absence is fine
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
 
-_HDR = b"NYTPROF\x00" + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
+_HDR = b'NYTPROF\x00' + (5).to_bytes(4,'little') + (0).to_bytes(4,'little')
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
