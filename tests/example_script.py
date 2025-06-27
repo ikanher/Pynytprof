@@ -4,5 +4,6 @@ def work():
         total += i * i
     return total
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print(work())
