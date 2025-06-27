@@ -60,7 +60,9 @@ def _write_nytprof(out_path: Path) -> None:
     ]
     with out_path.open("wb") as f:
         f.write(_HDR)
-        f.write(_chunk("H", struct.pack("<II", 5, 0)))
+        f.write(
+            b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
+        )
         f.write(_chunk("A", a_payload))
         f.write(_chunk("F", f_payload))
         f.write(_chunk("S", b"".join(s_records)))

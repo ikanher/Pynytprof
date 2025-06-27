@@ -22,6 +22,16 @@ static void write_header(FILE *fp) {
     fwrite(HDR, 1, 16, fp);
 }
 
+static void write_H_chunk(FILE *fp) {
+    const unsigned char h[1 + 4 + 8] = {
+        'H',
+        8, 0, 0, 0, /* length */
+        5, 0, 0, 0, /* major */
+        0, 0, 0, 0  /* minor */
+    };
+    fwrite(h, 1, sizeof h, fp);
+}
+
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     PyObject *path_obj, *files_obj, *defs_obj, *calls_obj, *lines_obj, *start_obj,
         *ticks_obj;
@@ -55,12 +65,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
     write_header(fp);
-
-    unsigned char hchunk[13];
-    hchunk[0] = 'H';
-    put_u32le(hchunk + 1, 8);
-    put_u32le(hchunk + 5, 5);
-    put_u32le(hchunk + 9, 0);
+    write_H_chunk(fp);
 
     char abuf[128];
     int apos = 0;
@@ -223,7 +228,6 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     echunk[0] = 'E';
     put_u32le(echunk + 1, 0);
 
-    fwrite(hchunk, 13, 1, fp);
     fwrite(achunk, 5 + a_len, 1, fp);
     fwrite(fchunk, 5 + f_len, 1, fp);
     fwrite(dchunk, 5 + d_len, 1, fp);

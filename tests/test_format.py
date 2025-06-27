@@ -21,6 +21,8 @@ def test_format(tmp_path, extra_env):
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', str(script)], cwd=tmp_path, env=env)
     assert out.exists()
     assert out.open('rb').read(16) == EXPECT
+    first_chunk = out.open('rb').read(25)
+    assert first_chunk[16:17] == b'H' and int.from_bytes(first_chunk[17:21],'little') == 8
     start = time.perf_counter()
     data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000

@@ -22,7 +22,7 @@ def test_callgraph(tmp_path):
         subprocess.check_call(["nytprofhtml", "-f", "nytprof.out"], cwd=tmp_path)
     except Exception:
         with open(tmp_path / "nytprof.out", "rb") as fh:
-            print("HDR", fh.read(16).hex(), file=sys.stderr)
+            print("HDR", fh.read(25).hex(), file=sys.stderr)
         raise
     html = (tmp_path / "nytprof" / "index.html").read_text()
     assert "cg_example.py->foo" in html
