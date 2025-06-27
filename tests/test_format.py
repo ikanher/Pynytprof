@@ -5,7 +5,7 @@ import time
 import os
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from pynytprof.reader import read, EXPECT
+from pynytprof.reader import read
 
 
 import pytest
@@ -21,8 +21,8 @@ def test_format(tmp_path, force_py):
         env['PYNTP_FORCE_PY'] = '1'
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', str(script)], cwd=tmp_path, env=env)
     assert out.exists()
-    header = out.open('rb').read(16)
-    assert header == EXPECT
+    expected = b'NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00'
+    assert out.open('rb').read(16) == expected
     start = time.perf_counter()
     data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000
