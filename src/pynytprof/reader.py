@@ -6,11 +6,11 @@ __all__ = ["read"]
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if len(data) < 16 or data[:8] != b"NYTPROF\x00":
-        raise ValueError("bad magic")
-    offset = 8
-    major, minor = struct.unpack_from("<II", data, offset)
-    offset += 8
+    expected = b"NYTPROF\x00" + b"\x05\x00\x00\x00" + b"\x00\x00\x00\x00"
+    if len(data) < 16 or data[:16] != expected:
+        raise ValueError("bad header")
+    major, minor = struct.unpack_from("<II", data, 8)
+    offset = 16
     result = {
         "header": (major, minor),
         "attrs": {},

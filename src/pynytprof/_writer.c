@@ -50,6 +50,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
 
     static const char MAGIC[8] = "NYTPROF\0";
     fwrite(MAGIC, 1, 8, fp);
+    uint32_t v[2] = {5, 0};
+    fwrite(v, sizeof v, 1, fp);
 
     unsigned char header[8];
     put_u32le(header, 5);
