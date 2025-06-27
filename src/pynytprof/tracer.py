@@ -14,6 +14,10 @@ try:  # optional C acceleration
     from . import _cwrite
 except Exception:  # pragma: no cover - absence is fine
     _cwrite = None
+try:  # optional C tracer
+    from . import _tracer as _ctrace
+except Exception:  # pragma: no cover - absence is fine
+    _ctrace = None
 
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
@@ -44,9 +48,7 @@ def _write_nytprof_py(out_path: Path) -> None:
         return
 
     stat = _script_path.stat()
-    a_payload = (
-        f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
-    )
+    a_payload = f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
     f_payload = (
         struct.pack("<IIII", 0, 0x10, stat.st_size, int(stat.st_mtime))
         + str(_script_path).encode()
@@ -73,9 +75,7 @@ def _write_nytprof_py(out_path: Path) -> None:
 def _write_nytprof(out_path: Path) -> None:
     if _cwrite is not None:
         stat = _script_path.stat()
-        records = [
-            (line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())
-        ]
+        records = [(line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())]
         _cwrite.write(
             str(out_path),
             str(_script_path),
@@ -108,6 +108,10 @@ def profile_script(path: str) -> None:
     global _script_path, _start_ns, _results, _last_ns
     _script_path = Path(path).resolve()
     _start_ns = time.time_ns()
+    if _ctrace is not None:
+        _ctrace.enable(str(_script_path), _start_ns)
+        runpy.run_path(str(_script_path), run_name="__main__")
+        return
     _results = {}
     _last_ns = 0
     out_path = Path("nytprof.out")
@@ -129,6 +133,6 @@ def cli() -> None:
         raise SystemExit(1)
     profile_script(sys.argv[1])
 
+
 if __name__ == "__main__":
     cli()
-
