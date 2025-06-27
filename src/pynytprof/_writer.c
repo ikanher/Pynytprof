@@ -17,9 +17,9 @@ static void put_u64le(unsigned char *p, uint64_t v) {
 }
 
 static void write_header(FILE *fp) {
-    static const unsigned char hdr[16] =
-        "NYTPROF\0" "\x05\x00\x00\x00" "\x00\x00\x00\x00";
-    fwrite(hdr, 1, 16, fp);
+    static const unsigned char HDR[16] =
+        "NYTPROF\0" "\x05\0\0\0" "\0\0\0\0";
+    fwrite(HDR, 1, 16, fp);
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
