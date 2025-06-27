@@ -6,12 +6,15 @@ import shutil
 import pytest
 
 
-def test_callgraph(tmp_path):
+@pytest.mark.parametrize("force_py", [False, True])
+def test_callgraph(tmp_path, force_py):
     script = Path(__file__).with_name("cg_example.py")
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    if force_py:
+        env["PYNTP_FORCE_PY"] = "1"
     subprocess.check_call([
         sys.executable,
         "-m",

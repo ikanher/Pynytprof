@@ -24,7 +24,8 @@ except Exception:  # pragma: no cover - absence is fine
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
 
-_HDR = b'NYTPROF\x00' + (5).to_bytes(4,'little') + (0).to_bytes(4,'little')
+_HDR = b'NYTPROF\x00' + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
+_H_CHUNK = b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
@@ -60,9 +61,7 @@ def _write_nytprof(out_path: Path) -> None:
     ]
     with out_path.open("wb") as f:
         f.write(_HDR)
-        f.write(
-            b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
-        )
+        f.write(_H_CHUNK)
         f.write(_chunk("A", a_payload))
         f.write(_chunk("F", f_payload))
         f.write(_chunk("S", b"".join(s_records)))
