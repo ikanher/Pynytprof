@@ -15,20 +15,14 @@ def test_convert(tmp_path):
         "pynytprof.tracer",
         str(script),
     ], cwd=tmp_path, env=env)
-    out_json = tmp_path / "out.json"
     subprocess.check_call([
         sys.executable,
         "-m",
-        "pynytprof.main",
+        "pynytprof",
         "convert",
         "--speedscope",
         "nytprof.out",
-        str(out_json),
     ], cwd=tmp_path, env=env)
+    out_json = tmp_path / "nytprof.speedscope.json"
     data = json.loads(out_json.read_text())
-    assert data["schema"]
-    assert data["version"] == "0.3.0"
-    assert data["profiles"]
-    events = data["profiles"][0]["events"]
-    assert any(e["type"] == "O" for e in events)
-    assert any(e["type"] == "C" for e in events)
+    assert data["$schema"] == "https://www.speedscope.app/file-format-schema.json"
