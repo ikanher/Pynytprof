@@ -9,7 +9,7 @@ pynytprof your_script.py
 nytprofhtml -f nytprof.out
 ```
 
-Current status: MVP writes only H A F S E chunks.
+Current status: files include H, A, F, D, C, S and E chunks.
 
 ## Selective profiling
 Set `NYTPROF_FILTER` to a comma separated list of glob patterns.
