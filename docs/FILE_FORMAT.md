@@ -28,8 +28,8 @@ chunk[] (see below)
 | `S`   | repeat `{u32 fid,u32 line, u32 calls, u64 inc_ticks, u64 exc_ticks}` | one record per executed line                                     |
 | `E`   | empty                                                        | terminator                                                        |
 
-Skip call-graph chunks (`C`,`D`) for now. `nytprofhtml` still renders per-line heat maps. If the
-reader complains, look for "File format error: token X".
+Call-graph chunks (`C`,`D`) are included so that `nytprofhtml` can render call graphs.
+If the reader complains, look for "File format error: token X".
 
 ### Tick units
 
