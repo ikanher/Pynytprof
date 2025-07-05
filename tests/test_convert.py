@@ -19,8 +19,7 @@ def test_convert(tmp_path):
         sys.executable,
         "-m",
         "pynytprof",
-        "convert",
-        "--speedscope",
+        "speedscope",
         "nytprof.out",
     ], cwd=tmp_path, env=env)
     out_json = tmp_path / "nytprof.speedscope.json"
