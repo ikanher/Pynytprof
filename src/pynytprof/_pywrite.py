@@ -50,5 +50,3 @@ def write(
         )
         f.write(_chunk(b"S", s_payload))
         f.write(_chunk(b"E", b""))
-
-

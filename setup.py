@@ -15,9 +15,9 @@ class OptionalBuildExt(build_ext):
                     "Building _cwrite failed; falling back to pure-Python mode",
                     RuntimeWarning,
                 )
+                print(f"warning: optional extension {ext.name} failed: {exc}")
             else:
                 raise
-
 
 setup(
     name="pynytprof",
