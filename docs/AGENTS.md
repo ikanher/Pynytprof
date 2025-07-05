@@ -9,7 +9,7 @@ It lets both humans and tools figure out where a new contribution fits and which
 
 | Agent | Scope | Entry-point | Owns / writes to | Typical trigger |
 |-------|-------|------------|------------------|-----------------|
-| **Profile agent** | Records runtime events | `pynytprof.tracer` ⇢ `_ctrace` \| `_tracer` | `nytprof.out` | `pynytprof profile …` |
+| **Profile agent** | Records runtime events | `pynytprof.tracer` ⇢ `_ctrace` | `nytprof.out` | `pynytprof profile …` |
 | **Write agent** | Serialises data into NYTProf chunks | `_cwrite` \| `_pywrite` | `nytprof.out` | Call from tracer at process exit |
 | **Convert agent** | Turns NYTProf → other formats | `pynytprof.convert` | `*.json`, `*.html` etc. | `pynytprof html` / `pynytprof speedscope` |
 | **Verify agent** | Validates a NYTProf file | `pynytprof.verify` | — | `pynytprof verify …` |

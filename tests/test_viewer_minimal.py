@@ -11,9 +11,9 @@ def test_viewer_minimal(tmp_path):
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
     try:
-        import pynytprof._tracer  # type: ignore  # noqa: F401
+        import pynytprof._ctrace  # type: ignore  # noqa: F401
     except Exception:
-        pytest.skip("_tracer missing")
+        pytest.skip("_ctrace missing")
 
     script = tmp_path / "hello.py"
     script.write_text(HELLO)

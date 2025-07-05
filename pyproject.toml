@@ -14,6 +14,9 @@ dependencies = []
 [project.scripts]
 pynytprof = "pynytprof.cli:main"
 
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov", "wheel", "build"]
+
 [tool.black]
 line-length = 99
 

@@ -32,7 +32,7 @@ if _write is None:  # pragma: no cover - should ship with at least _pywrite
 
 _ctrace = None
 if not _force_py:
-    for _mod in ("_tracer", "_ctrace"):
+    for _mod in ("_ctrace", "_tracer", "_tracer_py"):
         try:
             _ctrace = importlib.import_module(f"pynytprof.{_mod}")
             break

@@ -12,9 +12,9 @@ def test_callgraph(tmp_path, use_c):
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
     try:
-        import pynytprof._tracer  # type: ignore  # noqa: F401
+        import pynytprof._ctrace  # type: ignore  # noqa: F401
     except Exception:
-        pytest.skip("_tracer missing")
+        pytest.skip("_ctrace missing")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     if not use_c:

@@ -8,9 +8,9 @@ import pytest
 def test_c_chunks(tmp_path, use_c):
     script = Path(__file__).with_name("cg_example.py")
     try:
-        import pynytprof._tracer  # type: ignore  # noqa: F401
+        import pynytprof._ctrace  # type: ignore  # noqa: F401
     except Exception:
-        pytest.skip("_tracer missing")
+        pytest.skip("_ctrace missing")
     if use_c:
         try:
             import pynytprof._cwrite  # type: ignore  # noqa: F401

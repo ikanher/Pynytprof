@@ -351,7 +351,7 @@ static PyMethodDef Methods[] = {
 };
 
 static struct PyModuleDef moddef = {
-    PyModuleDef_HEAD_INIT, "_tracer", NULL, -1, Methods
+    PyModuleDef_HEAD_INIT, "_ctrace", NULL, -1, Methods
 };
 
-PyMODINIT_FUNC PyInit__tracer(void) { return PyModule_Create(&moddef); }
+PyMODINIT_FUNC PyInit__ctrace(void) { return PyModule_Create(&moddef); }
