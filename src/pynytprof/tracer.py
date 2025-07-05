@@ -15,11 +15,21 @@ from typing import Any, Dict, List
 try:  # optional C acceleration
     from . import _cwrite
 except Exception:  # pragma: no cover - absence is fine
-    _cwrite = None
+    try:
+        from . import _writer as _cwrite
+    except Exception:  # pragma: no cover - absence is fine
+        try:
+            from . import _pywrite as _cwrite
+        except Exception:  # pragma: no cover - absence is fine
+            _cwrite = None
+
 try:  # optional C tracer
     from . import _tracer as _ctrace
 except Exception:  # pragma: no cover - absence is fine
-    _ctrace = None
+    try:
+        from . import _ctrace as _ctrace
+    except Exception:  # pragma: no cover - absence is fine
+        _ctrace = None
 
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
