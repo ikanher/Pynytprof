@@ -12,23 +12,32 @@ from fnmatch import fnmatch
 from types import FrameType
 from typing import Any, Dict, List
 
+_force_py = bool(os.environ.get("PYNTP_FORCE_PY"))
+
 _write = None
-for _mod in ("_cwrite", "_writer", "_pywrite"):
+if _force_py:
     try:
-        _write = importlib.import_module(f"pynytprof.{_mod}").write
-        break
-    except ModuleNotFoundError:  # pragma: no cover - optional
-        continue
+        _write = importlib.import_module("pynytprof._pywrite").write
+    except ModuleNotFoundError:
+        _write = None
+else:
+    for _mod in ("_cwrite", "_writer", "_pywrite"):
+        try:
+            _write = importlib.import_module(f"pynytprof.{_mod}").write
+            break
+        except ModuleNotFoundError:  # pragma: no cover - optional
+            continue
 if _write is None:  # pragma: no cover - should ship with at least _pywrite
     raise ImportError("No nyprof writer available")
 
 _ctrace = None
-for _mod in ("_tracer", "_ctrace"):
-    try:
-        _ctrace = importlib.import_module(f"pynytprof.{_mod}")
-        break
-    except ModuleNotFoundError:  # pragma: no cover - optional
-        continue
+if not _force_py:
+    for _mod in ("_tracer", "_ctrace"):
+        try:
+            _ctrace = importlib.import_module(f"pynytprof.{_mod}")
+            break
+        except ModuleNotFoundError:  # pragma: no cover - optional
+            continue
 
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"

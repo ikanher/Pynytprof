@@ -43,6 +43,7 @@ pynytprof convert --speedscope nytprof.out
 
 ## Prerequisites
 Debian/Ubuntu:  sudo ./setup.sh
+Running the HTML round-trip test requires `cpanm Devel::NYTProf`
 
 ## Quick start
 ```bash
