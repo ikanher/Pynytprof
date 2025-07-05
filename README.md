@@ -5,7 +5,7 @@ for rendering until a dedicated UI exists.
 
 ```bash
 python -m pip install -e .
-pynytprof your_script.py
+pynytprof profile your_script.py
 nytprofhtml -f nytprof.out
 ```
 
@@ -35,10 +35,10 @@ pynytprof verify nytprof.out
 ```
 
 ## Flamegraph output
-Use `convert` to generate Speedscope JSON and view results in a browser.
+Use the `speedscope` command to generate JSON for the Speedscope viewer.
 
 ```bash
-pynytprof convert --speedscope nytprof.out
+pynytprof speedscope nytprof.out
 ```
 
 ## Prerequisites
@@ -49,4 +49,14 @@ Running the HTML round-trip test requires `cpanm Devel::NYTProf`
 ```bash
 bash setup.sh      # installs dependencies, builds C extensions, runs tests
 source .venv/bin/activate
+```
+
+## Command-line usage
+Typical operations:
+
+```bash
+pynytprof profile script.py
+pynytprof verify nytprof.out
+pynytprof html nytprof.out --out report
+pynytprof speedscope nytprof.out --out profile.json
 ```

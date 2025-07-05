@@ -6,10 +6,12 @@ This document explains the moving pieces of **Pynytprof** and how they work toge
 
 | Module | Responsibility |
 |-------|---------------|
-| `main.py` | Command-line entry points and high level helpers |
+| `cli.py` | Argparse-based command line interface |
+| `main.py` | Legacy command-line helpers |
 | `convert.py` | Convert NYTProf files to other formats |
 | `tracer.py` | Pure Python tracer used when no C tracer is available |
 | `reader.py` | Developer helper to decode NYTProf data |
+| `verify.py` | Stream verifier for NYTProf files |
 
 ## Runtime flow
 

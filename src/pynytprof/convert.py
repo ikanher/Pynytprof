@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import struct
 from pathlib import Path
+import subprocess
+import shutil
 
-__all__ = ["to_speedscope"]
+__all__ = ["to_html", "to_speedscope"]
 
 
 def _parse(path: str) -> tuple[dict, dict, dict, list, list]:
@@ -69,6 +71,14 @@ def _parse(path: str) -> tuple[dict, dict, dict, list, list]:
         elif tok == "E":
             break
     return attrs, files, defs, calls, lines
+
+
+def to_html(in_path: str, out_dir: str | None = None) -> str:
+    dest = out_dir or str(Path(in_path).with_suffix("")) + "_html"
+    if shutil.which("nytprofhtml") is None:
+        raise RuntimeError("nytprofhtml not found")
+    subprocess.check_call(["nytprofhtml", "-f", in_path, "-o", dest])
+    return dest
 
 
 def to_speedscope(in_path: str, out_path: str | None = None) -> str:
