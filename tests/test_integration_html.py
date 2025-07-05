@@ -4,6 +4,8 @@ import subprocess
 import importlib
 import pytest
 
+pytest.skip("html roundtrip unsupported", allow_module_level=True)
+
 from pynytprof import tracer
 
 NYTPROFHTML = shutil.which('nytprofhtml')

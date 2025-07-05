@@ -1,16 +1,17 @@
+from __future__ import annotations
+
 import argparse
+import os
+import subprocess
 import sys
 
-from . import tracer, convert, verify
+from . import convert, verify
 
 
 def _cmd_profile(args: argparse.Namespace) -> int:
-    sys.argv = [args.script] + args.args
-    try:
-        tracer.profile_script(args.script)
-        return 0
-    except SystemExit as exc:  # forward script exit code
-        return int(exc.code) if isinstance(exc.code, int) else 1
+    cmd = [sys.executable, "-m", "pynytprof.tracer", args.script, *args.args]
+    proc = subprocess.run(cmd, env=os.environ.copy())
+    return proc.returncode
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
@@ -32,7 +33,7 @@ def _cmd_speedscope(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="pynytprof")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -60,8 +61,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.set_defaults(func=_cmd_speedscope)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    code = args.func(args)
+    raise SystemExit(code)
 
 
 if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
+    main()
