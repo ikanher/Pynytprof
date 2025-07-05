@@ -11,42 +11,31 @@ class OptionalBuildExt(build_ext):
         try:
             super().build_extension(ext)
         except Exception as exc:  # pragma: no cover - compile env may vary
-            if ext.name in {"pynytprof._cwrite", "pynytprof._ctrace"}:
-                warnings.warn(
-                    f"Building optional extension {ext.name} failed; "
-                    "falling back to pure-Python mode",
-                    RuntimeWarning,
-                )
-                print(f"warning: optional extension {ext.name} failed: {exc}")
-                ext._build_failed = True
-            else:
-                raise
+            warnings.warn(f"Skipping {ext.name}: {exc}", RuntimeWarning)
+            ext._build_failed = True
 
     def copy_extensions_to_source(self):  # pragma: no cover - build env varies
-        kept = [e for e in self.extensions if not getattr(e, "_build_failed", False)]
-        orig = self.extensions
-        self.extensions = kept
+        self.extensions = [e for e in self.extensions if not getattr(e, "_build_failed", False)]
         super().copy_extensions_to_source()
-        self.extensions = orig
 
 
 extensions = [
-        Extension(
-            "pynytprof._cwrite",
-            ["src/pynytprof/_writer.c"],
-            optional=True,
-            define_macros=[("PY_SSIZE_T_CLEAN", None)],
-        ),
-        Extension(
-            "pynytprof._ctrace",
-            ["src/pynytprof/_ctrace.c"],
-            optional=True,
-            define_macros=[("PY_SSIZE_T_CLEAN", None)],
-        ),
-    ]
+    Extension(
+        "pynytprof._cwrite",
+        ["src/pynytprof/_writer.c"],
+        optional=True,
+        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+    ),
+    Extension(
+        "pynytprof._ctrace",
+        ["src/pynytprof/_ctrace.c"],
+        optional=True,
+        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+    ),
+]
 
-    if sys.version_info >= (3, 12):
-        extensions = [e for e in extensions if e.name != "pynytprof._ctrace"]
+if sys.version_info >= (3, 12):
+    extensions = [e for e in extensions if e.name != "pynytprof._ctrace"]
 
 setup(
     name="pynytprof",
