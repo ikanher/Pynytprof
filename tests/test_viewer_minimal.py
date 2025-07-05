@@ -1,4 +1,7 @@
-import os, shutil, subprocess, sys
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 import pytest
 
@@ -8,7 +11,7 @@ def test_viewer_minimal(tmp_path):
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
     try:
-        import pynytprof._tracer  # type: ignore
+        import pynytprof._tracer  # type: ignore  # noqa: F401
     except Exception:
         pytest.skip("_tracer missing")
 

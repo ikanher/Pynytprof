@@ -66,7 +66,8 @@ def _write_nytprof(out_path: Path) -> None:
     ]
     _write(str(out_path), files, [], [], lines_vec, _start_ns, TICKS_PER_SEC)
 
-    import subprocess, shutil
+    import subprocess
+    import shutil
     if shutil.which("xxd"):
         subprocess.run(["xxd", "-g1", "-l64", out_path], text=True)
 
