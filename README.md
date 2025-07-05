@@ -11,6 +11,8 @@ nytprofhtml -f nytprof.out
 
 Current status: files include H, A, F, D, C, S and E chunks.
 
+See [architecture.md](docs/architecture.md) for a high level overview.
+
 ## Selective profiling
 Set `NYTPROF_FILTER` to a comma separated list of glob patterns.
 Patterns are matched against absolute file paths before recording each
