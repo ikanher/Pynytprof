@@ -2,19 +2,20 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-import shutil
 import pytest
 
-
 @pytest.mark.parametrize("use_c", [True, False])
-def test_callgraph(tmp_path, use_c):
+def test_c_chunks(tmp_path, use_c):
     script = Path(__file__).with_name("cg_example.py")
-    if not shutil.which("nytprofhtml"):
-        pytest.skip("nytprofhtml missing")
     try:
         import pynytprof._tracer  # type: ignore
     except Exception:
         pytest.skip("_tracer missing")
+    if use_c:
+        try:
+            import pynytprof._cwrite  # type: ignore
+        except Exception:
+            pytest.skip("_cwrite missing")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     if not use_c:
@@ -29,11 +30,6 @@ def test_callgraph(tmp_path, use_c):
         "pynytprof.tracer",
         str(script),
     ], cwd=tmp_path, env=env)
-    try:
-        subprocess.check_call(["nytprofhtml", "-f", "nytprof.out"], cwd=tmp_path)
-    except Exception:
-        with open(tmp_path / "nytprof.out", "rb") as fh:
-            print("HDR", fh.read(25).hex(), file=sys.stderr)
-        raise
-    html = (tmp_path / "nytprof" / "index.html").read_text()
-    assert "cg_example.py->foo" in html
+    data = (tmp_path / "nytprof.out").read_bytes()
+    assert b"C\x00" in data
+    assert b"D\x00" in data

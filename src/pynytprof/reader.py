@@ -19,6 +19,8 @@ def read(path: str) -> dict:
         "header": (5, 0),
         "attrs": {},
         "files": {},
+        "defs": [],
+        "calls": [],
         "records": [],
     }
     while offset < len(data):
@@ -74,6 +76,30 @@ def read(path: str) -> dict:
                 p += rec_size
             if p != length:
                 raise ValueError("bad S length")
+        elif tok == "D":
+            p = 0
+            while p < length:
+                if p + 16 > length:
+                    raise ValueError("bad D record")
+                sid, fid, sl, el = struct.unpack_from("<IIII", payload, p)
+                p += 16
+                end = payload.find(b"\0", p)
+                if end == -1 or end >= length:
+                    raise ValueError("bad D name")
+                name = payload[p:end].decode()
+                p = end + 1
+                result["defs"].append((sid, fid, sl, el, name))
+            if p != length:
+                raise ValueError("bad D length")
+        elif tok == "C":
+            p = 0
+            rec_size = 28
+            while p + rec_size <= length:
+                fid, line, sid, inc, exc = struct.unpack_from("<IIIQQ", payload, p)
+                result["calls"].append((fid, line, sid, inc, exc))
+                p += rec_size
+            if p != length:
+                raise ValueError("bad C length")
         elif tok == "E":
             if length != 0:
                 raise ValueError("bad E length")

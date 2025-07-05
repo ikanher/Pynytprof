@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import runpy
-import struct
 import sys
 import time
 from pathlib import Path
@@ -12,20 +12,26 @@ from fnmatch import fnmatch
 from types import FrameType
 from typing import Any, Dict, List
 
-try:  # optional C acceleration
-    from . import _cwrite
-except Exception:  # pragma: no cover - absence is fine
-    _cwrite = None
-try:  # optional C tracer
-    from . import _tracer as _ctrace
-except Exception:  # pragma: no cover - absence is fine
-    _ctrace = None
+_write = None
+for _mod in ("_cwrite", "_writer", "_pywrite"):
+    try:
+        _write = importlib.import_module(f"pynytprof.{_mod}").write
+        break
+    except ModuleNotFoundError:  # pragma: no cover - optional
+        continue
+if _write is None:  # pragma: no cover - should ship with at least _pywrite
+    raise ImportError("No nyprof writer available")
+
+_ctrace = None
+for _mod in ("_tracer", "_ctrace"):
+    try:
+        _ctrace = importlib.import_module(f"pynytprof.{_mod}")
+        break
+    except ModuleNotFoundError:  # pragma: no cover - optional
+        continue
 
 __all__ = ["profile", "cli", "profile_script"]
 __version__ = "0.0.0"
-
-_HDR = b'NYTPROF\x00' + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
-_H_CHUNK = b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
@@ -43,41 +49,13 @@ def _match(path: str) -> bool:
 
 
 
-def _chunk(tok: str, payload: bytes) -> bytes:
-    return tok.encode() + struct.pack("<I", len(payload)) + payload
-
-
 def _write_nytprof(out_path: Path) -> None:
     stat = _script_path.stat()
-    a_payload = f"ticks_per_sec={TICKS_PER_SEC}\0start_time={_start_ns}\0".encode()
-    f_payload = (
-        struct.pack("<IIII", 0, 0x10, stat.st_size, int(stat.st_mtime))
-        + str(_script_path).encode()
-        + b"\0"
-    )
-    s_records = [
-        struct.pack("<IIIQQ", 0, line, rec[0], rec[1] // 100, rec[2] // 100)
-        for line, rec in sorted(_results.items())
+    files = [(0, 0x10, stat.st_size, int(stat.st_mtime), str(_script_path))]
+    lines_vec = [
+        (0, line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())
     ]
-    with out_path.open("wb") as f:
-        if os.getenv("PYNTP_DEBUG"):
-            print("[DBG] chunk HDR len=16", file=sys.stderr)
-        f.write(_HDR)
-        if os.getenv("PYNTP_DEBUG"):
-            print("[DBG] chunk H len=8", file=sys.stderr)
-        f.write(_H_CHUNK)
-        if os.getenv("PYNTP_DEBUG"):
-            print(f"[DBG] chunk A len={len(a_payload)}", file=sys.stderr)
-        f.write(_chunk("A", a_payload))
-        if os.getenv("PYNTP_DEBUG"):
-            print(f"[DBG] chunk F len={len(f_payload)}", file=sys.stderr)
-        f.write(_chunk("F", f_payload))
-        if os.getenv("PYNTP_DEBUG"):
-            print(f"[DBG] chunk S len={len(b''.join(s_records))}", file=sys.stderr)
-        f.write(_chunk("S", b"".join(s_records)))
-        if os.getenv("PYNTP_DEBUG"):
-            print("[DBG] chunk E len=0", file=sys.stderr)
-        f.write(_chunk("E", b""))
+    _write(str(out_path), files, [], [], lines_vec, _start_ns, TICKS_PER_SEC)
 
     import subprocess, shutil
     if shutil.which("xxd"):
@@ -85,10 +63,15 @@ def _write_nytprof(out_path: Path) -> None:
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
-    if _cwrite is not None and not os.environ.get("PYNTP_FORCE_PY"):
-        _cwrite.write(str(out_path), files, defs, calls, lines, _start_ns, TICKS_PER_SEC)
-    else:
-        _write_nytprof(out_path)
+    _write(
+        str(out_path),
+        files,
+        defs,
+        calls,
+        lines,
+        _start_ns,
+        TICKS_PER_SEC,
+    )
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
