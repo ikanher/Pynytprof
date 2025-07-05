@@ -40,6 +40,6 @@ def test_format(tmp_path, hide_cwrite):
     assert data['header'] == (5, 0)
     assert data['attrs'].get('ticks_per_sec') == 10_000_000
     assert data['records']
-    lines = [r[1] for r in data['records']]
-    assert all(l > 0 for l in lines)
-    assert lines == sorted(lines)
+    line_numbers = [r[1] for r in data['records']]
+    assert all(num > 0 for num in line_numbers)
+    assert line_numbers == sorted(line_numbers)

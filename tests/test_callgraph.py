@@ -12,7 +12,7 @@ def test_callgraph(tmp_path, use_c):
     if not shutil.which("nytprofhtml"):
         pytest.skip("nytprofhtml missing")
     try:
-        import pynytprof._tracer  # type: ignore
+        import pynytprof._tracer  # type: ignore  # noqa: F401
     except Exception:
         pytest.skip("_tracer missing")
     env = dict(os.environ)

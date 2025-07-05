@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Tuple, Optional
+from typing import Optional
 
 
 def enable(path: str, start_ns: int) -> None: ...

@@ -1,6 +1,5 @@
 from pathlib import Path
 import pkgutil
-import re
 
 DOC = Path("docs/architecture.md")
 
