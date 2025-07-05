@@ -13,3 +13,6 @@ venv/
 build/
 dist/
 *.egg-info/
+# profiler artefacts
+*.out
+vendor/
