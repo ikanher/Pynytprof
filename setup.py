@@ -10,14 +10,16 @@ class OptionalBuildExt(build_ext):
         try:
             super().build_extension(ext)
         except Exception as exc:  # pragma: no cover - compile env may vary
-            if ext.name == "pynytprof._cwrite":
+            if ext.name in {"pynytprof._cwrite", "pynytprof._tracer"}:
                 warnings.warn(
-                    "Building _cwrite failed; falling back to pure-Python mode",
+                    f"Building optional extension {ext.name} failed; "
+                    "falling back to pure-Python mode",
                     RuntimeWarning,
                 )
                 print(f"warning: optional extension {ext.name} failed: {exc}")
             else:
                 raise
+
 
 setup(
     name="pynytprof",
@@ -31,5 +33,5 @@ setup(
         Extension("pynytprof._tracer", ["src/pynytprof/_tracer.c"]),
     ],
     cmdclass={"build_ext": OptionalBuildExt},
-    entry_points={"console_scripts": ["pynytprof=pynytprof.__main__:cli"]},
+    entry_points={"console_scripts": ["pynytprof=pynytprof.cli:main"]},
 )
