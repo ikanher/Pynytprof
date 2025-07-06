@@ -11,10 +11,16 @@ __all__ = ["to_html", "to_speedscope"]
 
 def _parse(path: str) -> tuple[dict, dict, dict, list, list]:
     data = Path(path).read_bytes()
-    EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
-    if data[:16] != EXPECT:
+    PREFIX = b"NYTPROF\0"
+    if data[:8] != PREFIX:
         raise ValueError("bad header")
-    off = 16
+    if len(data) < 20:
+        raise ValueError("truncated header")
+    version = struct.unpack_from("<I", data, 8)[0]
+    if version != 5:
+        raise ValueError("bad version")
+    header_len = struct.unpack_from("<Q", data, 12)[0]
+    off = 20 + header_len
     attrs: dict[str, int] = {}
     files: dict[int, dict] = {}
     defs: dict[int, dict] = {}
