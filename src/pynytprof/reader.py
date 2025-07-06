@@ -4,17 +4,49 @@ from pathlib import Path
 __all__ = ["read"]
 
 
-EXPECT = b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00"
-H_CHUNK = b"H" + (8).to_bytes(4, "little") + (5).to_bytes(4, "little") + (0).to_bytes(4, "little")
+PREFIX = b"NYTPROF\0"
+VERSION = 5
 
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if data[:16] != EXPECT:
+    if data[:8] != PREFIX:
         raise ValueError("bad header")
-    if data[16:29] != H_CHUNK:
-        raise ValueError("bad H chunk")
-    offset = 29
+    if len(data) < 20:
+        raise ValueError("truncated header")
+    version = struct.unpack_from("<I", data, 8)[0]
+    if version != VERSION:
+        raise ValueError("bad version")
+    header_len = struct.unpack_from("<Q", data, 12)[0]
+    if len(data) < 20 + header_len:
+        raise ValueError("truncated payload")
+    h_chunk = data[20 : 20 + header_len]
+    if h_chunk[:1] != b"H":
+        raise ValueError("bad H tag")
+    h_len = struct.unpack_from("<I", h_chunk, 1)[0]
+    if h_len != len(h_chunk) - 5:
+        raise ValueError("bad H length")
+    attrs_blob = h_chunk[5:]
+    if attrs_blob and attrs_blob[-1] != 0:
+        raise ValueError("H not nul terminated")
+    offset = 20 + header_len
+    result = {
+        "header": (version, 0),
+        "attrs": {},
+        "files": {},
+        "defs": [],
+        "calls": [],
+        "records": [],
+    }
+    if attrs_blob:
+        for item in attrs_blob[:-1].split(b"\0"):
+            if b"=" not in item:
+                raise ValueError("bad attr")
+            k, v = item.split(b"=", 1)
+            try:
+                result["attrs"][k.decode()] = int(v)
+            except ValueError:
+                result["attrs"][k.decode()] = v.decode()
     result = {
         "header": (5, 0),
         "attrs": {},
@@ -24,7 +56,7 @@ def read(path: str) -> dict:
         "records": [],
     }
     while offset < len(data):
-        tok = data[offset:offset + 1]
+        tok = data[offset : offset + 1]
         if not tok:
             raise ValueError("unexpected EOF")
         tok = tok.decode()
@@ -35,7 +67,7 @@ def read(path: str) -> dict:
         offset += 4
         if offset + length > len(data):
             raise ValueError("truncated payload")
-        payload = data[offset:offset + length]
+        payload = data[offset : offset + length]
         offset += length
 
         if tok == "A":

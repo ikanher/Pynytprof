@@ -5,8 +5,8 @@ from pathlib import Path
 import struct
 
 
-HDR = b"NYTPROF\0" + struct.pack("<II", 5, 0)
-H_CHUNK = b"H" + struct.pack("<I", 8) + struct.pack("<II", 5, 0)
+def _kv(key: str, value: str) -> bytes:
+    return f"{key}={value}\0".encode()
 
 
 def _chunk(tok: bytes, payload: bytes) -> bytes:
@@ -25,8 +25,16 @@ def write(
     """Write NYTProf file purely in Python."""
     path = Path(out_path)
     with path.open("wb") as f:
-        f.write(HDR)
-        f.write(H_CHUNK)
+        kv = b"".join(
+            [
+                _kv("ticks_per_sec", str(ticks_per_sec)),
+                _kv("start_time", str(int(start_ns / 1_000_000_000))),
+                _kv("perl", "python"),
+            ]
+        )
+        h_chunk = b"H" + struct.pack("<I", len(kv)) + kv
+        hdr = struct.pack("<8sIQ", b"NYTPROF\0", 5, len(h_chunk)) + h_chunk
+        f.write(hdr)
         a_payload = f"ticks_per_sec={ticks_per_sec}\0start_time={start_ns}\0".encode()
         f.write(_chunk(b"A", a_payload))
         f_payload = b"".join(

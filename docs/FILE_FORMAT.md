@@ -4,9 +4,10 @@
 ### Top-level layout
 
 ```
-"NYTPROF" magic (8 bytes, ASCII)
-u32 major = 5
-u32 minor = 0
+"NYTPROF\0" magic (8 bytes, ASCII)
+u32 version = 5
+u64 header_len
+"H" chunk of header_len bytes (see below)
 chunk[] (see below)
 ```
 
@@ -22,7 +23,7 @@ chunk[] (see below)
 
 | Token | Payload struct                                               | What to fill                                                       |
 |-------|--------------------------------------------------------------|-------------------------------------------------------------------|
-| `H`   | `{u32 major,u32 minor}`                                      | copy header versions                                              |
+| `H`   | key=value strings joined by NUL                              | always includes `ticks_per_sec`, `start_time`, `perl=python`       |
 | `A`   | key=value NUL-joined string table                             | required keys: `ticks_per_sec`, `start_time`                      |
 | `F`   | repeat `{u32 fid,u32 flags,u32 size,u32 mtime, zstr path}`   | at least your script = fid 0, set `flags |= 0x10` (HAS_SRC)       |
 | `S`   | repeat `{u32 fid,u32 line, u32 calls, u64 inc_ticks, u64 exc_ticks}` | one record per executed line                                     |

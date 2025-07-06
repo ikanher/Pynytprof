@@ -13,7 +13,19 @@ def verify(path: str, quiet: bool = False) -> bool:
         with open(path, "rb") as f:
             if f.read(8) != MAGIC:
                 raise ValueError("bad header")
-            f.read(8)  # version
+            ver_b = f.read(4)
+            if len(ver_b) != 4:
+                raise ValueError("truncated version")
+            ver = struct.unpack("<I", ver_b)[0]
+            if ver != 5:
+                raise ValueError("bad version")
+            len_b = f.read(8)
+            if len(len_b) != 8:
+                raise ValueError("truncated header_len")
+            header_len = struct.unpack("<Q", len_b)[0]
+            if header_len:
+                if len(f.read(header_len)) != header_len:
+                    raise ValueError("truncated header")
             last = None
             count = 0
             while True:

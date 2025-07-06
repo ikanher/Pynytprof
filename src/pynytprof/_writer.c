@@ -21,20 +21,26 @@ static void put_u64le(unsigned char *p, uint64_t v) {
     put_u32le(p + 4, (uint32_t)(v >> 32));
 }
 
-static void write_header(FILE *fp) {
-    static const unsigned char HDR[16] =
-        "NYTPROF\0" "\x05\0\0\0" "\0\0\0\0";
-    fwrite(HDR, 1, 16, fp);
-}
+static void write_header(FILE *fp, uint64_t start_ns) {
+    fwrite("NYTPROF\0", 1, 8, fp);
+    uint32_t ver = 5;
+    fwrite(&ver, 4, 1, fp);
 
-static void write_H_chunk(FILE *fp) {
-    static const unsigned char H[13] =
-        "H" /* token */
-        "\x08\x00\x00\x00" /* u32 length = 8 */
-        "\x05\x00\x00\x00" /* u32 major = 5 */
-        "\x00\x00\x00\x00"; /* u32 minor = 0 */
-    dbg_chunk('H', 8);
-    fwrite(H, 1, sizeof H, fp);
+    char buf[256];
+    int off = 0;
+    off += sprintf(buf + off, "ticks_per_sec=10000000%c", 0);
+    off += sprintf(buf + off, "start_time=%" PRIu64 "%c",
+                   (uint64_t)(start_ns / 1000000000ULL), 0);
+    off += sprintf(buf + off, "perl=python%c", 0);
+
+    uint8_t tag = 'H';
+    uint32_t payload_len = off;
+    uint64_t header_len = 1 + 4 + payload_len;
+
+    fwrite(&header_len, 8, 1, fp);
+    fwrite(&tag, 1, 1, fp);
+    fwrite(&payload_len, 4, 1, fp);
+    fwrite(buf, 1, payload_len, fp);
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
@@ -69,8 +75,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
-    write_header(fp);
-    write_H_chunk(fp);
+    write_header(fp, start_ns);
 
     char abuf[128];
     int apos = 0;
