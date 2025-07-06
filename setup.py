@@ -35,6 +35,7 @@ extensions = [
 ]
 
 if sys.version_info >= (3, 12):
+    # Only skip _ctrace; keep _cwrite for binary output support
     extensions = [e for e in extensions if e.name != "pynytprof._ctrace"]
 
 setup(
