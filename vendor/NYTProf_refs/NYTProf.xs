@@ -502,7 +502,7 @@ static U8 last_sawampersand;
 
 
 /*
- * The loading routine
+ * The loading routine. This is the one that load_profile_data_from_file calls.
  */
 load_profile_to_hv(pTHX_ NYTP_file in)
 {
