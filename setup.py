@@ -2,6 +2,22 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import warnings
 import sys
+import os
+from pathlib import Path
+import subprocess
+import time
+
+build_tag = os.environ.get("PYNYTPROF_BUILD_TAG")
+if not build_tag:
+    # try git commit, fall back to timestamp
+    try:
+        build_tag = (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode().strip()
+        )
+    except Exception:
+        build_tag = str(int(time.time()))
+
+Path("src/pynytprof/_build_tag.py").write_text(f'__pynytprof_build__ = "{build_tag}"\n')
 
 
 class OptionalBuildExt(build_ext):
@@ -24,13 +40,19 @@ extensions = [
         "pynytprof._cwrite",
         ["src/pynytprof/_writer.c"],
         optional=True,
-        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+        define_macros=[
+            ("PY_SSIZE_T_CLEAN", None),
+            ("PYNYTPROF_BUILD_TAG", f'"{build_tag}"'),
+        ],
     ),
     Extension(
         "pynytprof._ctrace",
         ["src/pynytprof/_ctrace.c"],
         optional=True,
-        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+        define_macros=[
+            ("PY_SSIZE_T_CLEAN", None),
+            ("PYNYTPROF_BUILD_TAG", f'"{build_tag}"'),
+        ],
     ),
 ]
 

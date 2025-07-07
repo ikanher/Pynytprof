@@ -10,6 +10,12 @@
 #include <assert.h>
 #include "nytp_version.h"
 
+#ifndef PYNYTPROF_BUILD_TAG
+#define PYNYTPROF_BUILD_TAG __DATE__ " " __TIME__
+#endif
+
+static const char *__build__ = PYNYTPROF_BUILD_TAG;
+
 static void dbg_chunk(char tok, uint32_t len) {
     if (getenv("PYNTP_DEBUG"))
         fprintf(stderr, "[DBG] write chunk %c len=%u\n", tok, len);
@@ -49,7 +55,9 @@ static const char *platform_name(void) {
     return buf;
 }
 
-static void emit_header_ascii(FILE *fp, long basetime) {
+static long basetime;
+
+static void emit_header_ascii(FILE *fp) {
     char buf[512];
     int n = snprintf(buf, sizeof(buf),
                      "NYTProf %d %d\n"
@@ -102,7 +110,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
-    emit_header_ascii(fp, (long)(start_ns / 1000000000ULL));
+    basetime = (long)(start_ns / 1000000000ULL);
+    emit_header_ascii(fp);
 
     char abuf[128];
     int apos = 0;
@@ -297,4 +306,10 @@ static PyMethodDef Methods[] = {{"write", pynytprof_write, METH_VARARGS, "write"
 static struct PyModuleDef moddef = {PyModuleDef_HEAD_INIT, "_cwrite", NULL,
                                     -1, Methods};
 
-PyMODINIT_FUNC PyInit__cwrite(void) { return PyModule_Create(&moddef); }
+PyMODINIT_FUNC PyInit__cwrite(void) {
+    PyObject *mod = PyModule_Create(&moddef);
+    if (!mod)
+        return NULL;
+    PyModule_AddStringConstant(mod, "__build__", __build__);
+    return mod;
+}

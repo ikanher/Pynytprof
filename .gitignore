@@ -16,3 +16,4 @@ dist/
 # profiler artefacts
 *.out
 vendor/
+src/pynytprof/_version.py

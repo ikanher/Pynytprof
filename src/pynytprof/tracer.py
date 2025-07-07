@@ -32,7 +32,7 @@ elif _force_py:
     except ModuleNotFoundError:
         _write = None
 else:
-    for _mod in ("_cwrite", "_writer", "_pywrite"):
+    for _mod in ("_writer", "_cwrite", "_pywrite"):
         try:
             _write = importlib.import_module(f"pynytprof.{_mod}").write
             break
@@ -167,10 +167,7 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
         exec(code, {"__name__": "__main__"})
     finally:
         sys.settrace(None)
-        lines_vec = [
-            (0, line, rec[0], rec[1], rec[2])
-            for line, rec in sorted(_results.items())
-        ]
+        lines_vec = [(0, line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())]
         _write(str(out_p), [], [], [], lines_vec, _start_ns, TICKS_PER_SEC)
 
 
