@@ -4,6 +4,7 @@ import os
 import struct
 import time
 from pathlib import Path
+from hashlib import sha1
 import zlib
 
 __all__ = ["Writer"]
@@ -44,6 +45,9 @@ class Writer:
         self._compressed_used = False
         self._table = _StringTable()
         self._table_written = False
+        self._file_id_counter = 0
+        self._file_count = 0
+        self._start_ns = 0
 
     def _compress(self, tag: bytes, data: bytes) -> bytes:
         if not data:
@@ -56,6 +60,33 @@ class Writer:
             return zlib.compress(data, 6)
         return data
 
+    def _next_file_id(self) -> int:
+        fid = self._file_id_counter
+        self._file_id_counter += 1
+        return fid
+
+    def _file_record(self, path: str, is_main: bool) -> bytes:
+        path_idx = self._table.add(path)
+        try:
+            digest = sha1(Path(path).read_bytes()).hexdigest()
+        except OSError:
+            digest = "0" * 40
+        digest_idx = self._table.add(digest)
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = 0
+        flags = 1 if is_main else 0
+        self._file_count += 1
+        return struct.pack(
+            "<IIIII",
+            self._next_file_id(),
+            path_idx,
+            digest_idx,
+            size,
+            flags,
+        )
+
     def _rewrite_header(self) -> None:
         data = self._path.read_bytes()
         rest = data[len(self._header_bytes) :]
@@ -64,6 +95,8 @@ class Writer:
             lines = lines[:-1]
         if self._compressed_used and b"compressed=1" not in lines:
             lines.append(b"compressed=1")
+        lines.append(b"has_end=1")
+        lines.append(f"filecount={self._file_count}".encode("ascii"))
         lines.append(b"stringtable=present")
         lines.append(f"stringcount={len(self._table._strings)}".encode("ascii"))
         lines.append(b"")
@@ -73,14 +106,20 @@ class Writer:
 
     def __enter__(self) -> "Writer":
         self._fh = self._path.open("wb")
+        self._start_ns = time.time_ns()
         self._write_text_header()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def close(self) -> None:
         if self._fh:
             if not self._table_written:
                 self._write_chunk(TAG_T, self._table.serialize())
                 self._table_written = True
+            end_ns = time.time_ns() - self._start_ns
+            self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
         self._fh = None
         self._rewrite_header()
@@ -118,13 +157,11 @@ class Writer:
             self._write_chunk(TAG_T, self._table.serialize())
             self._table_written = True
 
-    def _write_file_chunk(self, records: list[tuple[int, int, int, int, str]]) -> None:
+    def _write_file_chunk(self, records: list[tuple[str, bool]]) -> None:
         self._ensure_table()
         payload = bytearray()
-        for fid, flags, size, mtime, path in records:
-            payload.extend(struct.pack("<IIII", fid, flags, size, mtime))
-            idx = self._table.add(path)
-            payload.extend(struct.pack("<I", idx))
+        for path, is_main in records:
+            payload.extend(self._file_record(path, is_main))
         self._write_chunk(b"F", bytes(payload))
 
     def _write_sub_chunk(self, records: list[tuple[int, int, int, int, str]]) -> None:
