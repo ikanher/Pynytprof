@@ -22,7 +22,7 @@ def test_perl_callgraph(tmp_path):
         "perl",
         "-MDevel::NYTProf::Data",
         "-e",
-        "print Devel::NYTProf::Data->new(shift)->calls",
+        "print Devel::NYTProf::Data->new({filename=>shift})->calls",
         str(out),
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)

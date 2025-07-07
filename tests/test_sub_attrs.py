@@ -61,7 +61,7 @@ def test_perl_sub_attr(tmp_path):
         "perl",
         "-MDevel::NYTProf::Data",
         "-e",
-        "print Devel::NYTProf::Data->new(shift)->subs->[0]->calls",
+        "print Devel::NYTProf::Data->new({filename=>shift})->subs->[0]->calls",
         str(out),
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
