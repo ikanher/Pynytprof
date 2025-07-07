@@ -66,6 +66,35 @@ class _SubTable:
         return len(self._records)
 
 
+class _CallGraph:
+    def __init__(self) -> None:
+        self._edges: dict[tuple[int, int], list[int]] = {}
+
+    def add(self, caller_sid: int, callee_sid: int, dur_ns: int) -> None:
+        key = (caller_sid, callee_sid)
+        rec = self._edges.get(key)
+        if rec is None:
+            self._edges[key] = [1, dur_ns]
+        else:
+            if rec[0] < 0xFFFF_FFFF:
+                rec[0] = min(0xFFFF_FFFF, rec[0] + 1)
+            rec[1] += dur_ns
+
+    def serialize(self) -> bytes:
+        if not self._edges:
+            return b""
+        st = struct.Struct("<IIIQ")
+        payload = bytearray(len(self._edges) * st.size)
+        off = 0
+        for (caller, callee), (count, dur) in self._edges.items():
+            st.pack_into(payload, off, caller, callee, count, dur)
+            off += st.size
+        return bytes(payload)
+
+    def __len__(self) -> int:  # pragma: no cover - simple
+        return len(self._edges)
+
+
 class Writer:
     """Minimal NYTProf file writer used for tests."""
 
@@ -77,6 +106,7 @@ class Writer:
         self._compressed_used = False
         self._table = _StringTable()
         self._sub_table = _SubTable(self._table)
+        self._callgraph = _CallGraph()
         self._table_written = False
         self._file_id_counter = 0
         self._file_count = 0
@@ -88,6 +118,10 @@ class Writer:
     @property
     def sub_table(self) -> _SubTable:
         return self._sub_table
+
+    @property
+    def callgraph(self) -> _CallGraph:
+        return self._callgraph
 
     def add_file(self, path: str, is_main: bool = False) -> int:
         fid = self._file_map.get(path)
@@ -149,6 +183,10 @@ class Writer:
             lines.append(b"has_stmt=1")
         if b"has_subs=1" not in lines:
             lines.append(b"has_subs=1")
+        if self._callgraph and len(self._callgraph) > 0:
+            if b"callgraph=present" not in lines:
+                lines.append(b"callgraph=present")
+            lines.append(f"edgecount={len(self._callgraph)}".encode("ascii"))
         lines.append(b"has_end=1")
         lines.append(f"filecount={self._file_count}".encode("ascii"))
         lines.append(f"subcount={self._sub_table.count}".encode("ascii"))
@@ -180,6 +218,8 @@ class Writer:
                 self._flush_statement_file(fid)
             if self._sub_table.count:
                 self._write_chunk(b"S", self._sub_table.serialize())
+            if len(self._callgraph):
+                self._write_chunk(b"C", self._callgraph.serialize())
             end_ns = time.time_ns() - self._start_ns
             self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
