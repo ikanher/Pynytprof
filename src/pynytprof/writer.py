@@ -12,8 +12,7 @@ __all__ = ["Writer"]
 TAG_T = b"T"
 
 _MAGIC = b"NYTPROF\x00"
-_MAJOR = 5
-_MINOR = 0
+_MAJOR, _MINOR = 5, 0
 
 
 class _StringTable:
@@ -227,7 +226,7 @@ class Writer:
             self._fh.close()
         self._fh = None
 
-    def _build_attrs(self) -> bytes:
+    def _write_header(self) -> None:
         lines = [
             f"file={self._path}",
             "version=5",
@@ -236,10 +235,7 @@ class Writer:
         ]
         if self._compressed_used:
             lines.append("compressed=1")
-        return ("\n".join(lines) + "\n\n").encode("ascii")
-
-    def _write_header(self) -> None:
-        ascii_hdr = self._build_attrs()
+        ascii_hdr = ("\n".join(lines) + "\n\n").encode("ascii")
         self._fh.write(_MAGIC)
         self._fh.write(struct.pack("<II", _MAJOR, _MINOR))
         self._fh.write(ascii_hdr)
