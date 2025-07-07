@@ -48,6 +48,7 @@ class Writer:
         self._file_id_counter = 0
         self._file_count = 0
         self._start_ns = 0
+        self._stmts: dict[int, dict[int, list[int]]] = {}
 
     def _compress(self, tag: bytes, data: bytes) -> bytes:
         if not data:
@@ -95,6 +96,8 @@ class Writer:
             lines = lines[:-1]
         if self._compressed_used and b"compressed=1" not in lines:
             lines.append(b"compressed=1")
+        if b"has_stmt=1" not in lines:
+            lines.append(b"has_stmt=1")
         lines.append(b"has_end=1")
         lines.append(f"filecount={self._file_count}".encode("ascii"))
         lines.append(b"stringtable=present")
@@ -118,6 +121,8 @@ class Writer:
             if not self._table_written:
                 self._write_chunk(TAG_T, self._table.serialize())
                 self._table_written = True
+            for fid in list(self._stmts):
+                self._flush_statement_file(fid)
             end_ns = time.time_ns() - self._start_ns
             self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
@@ -134,6 +139,7 @@ class Writer:
             "ticks_per_sec=1000000000",
             f"process_id={os.getpid()}",
             f"start_time={int(time.time())}",
+            "has_stmt=1",
         ]
         if self._compressed_used:
             lines.append("compressed=1")
@@ -172,3 +178,34 @@ class Writer:
             idx = self._table.add(name)
             payload.extend(struct.pack("<I", idx))
         self._write_chunk(b"D", bytes(payload))
+
+    _stmt_struct = struct.Struct("<IIIQ")
+
+    def _flush_statement_block(self, records: list[tuple[int, int, int, int]]) -> None:
+        payload = bytearray(len(records) * self._stmt_struct.size)
+        off = 0
+        for rec in records:
+            self._stmt_struct.pack_into(payload, off, *rec)
+            off += self._stmt_struct.size
+        self._write_chunk(b"D", bytes(payload))
+
+    def _flush_statement_file(self, fid: int) -> None:
+        recs = self._stmts.get(fid)
+        if not recs:
+            return
+        packed = [(fid, line, vals[0], vals[1]) for line, vals in sorted(recs.items())]
+        self._flush_statement_block(packed)
+        self._stmts[fid] = {}
+
+    def record_statement(self, fid: int, line: int, elapsed_ns: int | None) -> None:
+        data = self._stmts.setdefault(fid, {})
+        hit_time = data.get(line)
+        if hit_time is None:
+            hit_time = [0, 0]
+            data[line] = hit_time
+        if hit_time[0] < 0xFFFF_FFFF:
+            hit_time[0] = min(0xFFFF_FFFF, hit_time[0] + 1)
+        if elapsed_ns is not None:
+            hit_time[1] += elapsed_ns
+        if len(data) >= 8000:
+            self._flush_statement_file(fid)
