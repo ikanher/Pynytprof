@@ -40,7 +40,7 @@ if sys.version_info >= (3, 12):
 
 setup(
     name="pynytprof",
-    version="0.0.0",
+    use_scm_version={"write_to": "src/pynytprof/_version.py"},
     packages=["pynytprof"],
     package_dir={"": "src"},
     package_data={"pynytprof": ["*.c"]},
