@@ -5,6 +5,8 @@ import struct
 __all__ = ["verify"]
 
 MAGIC = b"NYTPROF\0"
+MAJOR = 5
+MINOR = 0
 
 
 def verify(path: str, quiet: bool = False) -> bool:
@@ -13,19 +15,25 @@ def verify(path: str, quiet: bool = False) -> bool:
         with open(path, "rb") as f:
             if f.read(8) != MAGIC:
                 raise ValueError("bad header")
-            ver_b = f.read(4)
-            if len(ver_b) != 4:
+            maj_b = f.read(4)
+            min_b = f.read(4)
+            if len(maj_b) != 4 or len(min_b) != 4:
                 raise ValueError("truncated version")
-            ver = struct.unpack("<I", ver_b)[0]
-            if ver != 5:
+            major = struct.unpack("<I", maj_b)[0]
+            minor = struct.unpack("<I", min_b)[0]
+            if (major, minor) != (MAJOR, MINOR):
                 raise ValueError("bad version")
-            len_b = f.read(8)
-            if len(len_b) != 8:
-                raise ValueError("truncated header_len")
-            header_len = struct.unpack("<Q", len_b)[0]
-            if header_len:
-                if len(f.read(header_len)) != header_len:
-                    raise ValueError("truncated header")
+            while True:
+                b = f.read(1)
+                if not b:
+                    raise ValueError("truncated attrs")
+                if b in b"ACDFSET":
+                    f.seek(-1, 1)
+                    break
+                while b != b"\0":
+                    b = f.read(1)
+                    if not b:
+                        raise ValueError("truncated attrs")
             last = None
             count = 0
             while True:
