@@ -2,6 +2,8 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import warnings
 import sys
+import subprocess
+from time import time
 
 
 class OptionalBuildExt(build_ext):
@@ -19,18 +21,23 @@ class OptionalBuildExt(build_ext):
         super().copy_extensions_to_source()
 
 
+try:
+    build_tag = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+except Exception:
+    build_tag = str(int(time()))
+
 extensions = [
     Extension(
         "pynytprof._cwrite",
         ["src/pynytprof/_writer.c"],
         optional=True,
-        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+        define_macros=[("PY_SSIZE_T_CLEAN", None), ("BUILD_TAG", f"\"{build_tag}\"")],
     ),
     Extension(
         "pynytprof._ctrace",
         ["src/pynytprof/_ctrace.c"],
         optional=True,
-        define_macros=[("PY_SSIZE_T_CLEAN", None)],
+        define_macros=[("PY_SSIZE_T_CLEAN", None), ("BUILD_TAG", f"\"{build_tag}\"")],
     ),
 ]
 

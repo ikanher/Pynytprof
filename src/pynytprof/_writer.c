@@ -10,6 +10,11 @@
 #include <assert.h>
 #include "nytp_version.h"
 
+#ifndef BUILD_TAG
+#define BUILD_TAG "dev"
+#endif
+static const char *__build__ = BUILD_TAG;
+
 static void dbg_chunk(char tok, uint32_t len) {
     if (getenv("PYNTP_DEBUG"))
         fprintf(stderr, "[DBG] write chunk %c len=%u\n", tok, len);
@@ -297,4 +302,13 @@ static PyMethodDef Methods[] = {{"write", pynytprof_write, METH_VARARGS, "write"
 static struct PyModuleDef moddef = {PyModuleDef_HEAD_INIT, "_cwrite", NULL,
                                     -1, Methods};
 
-PyMODINIT_FUNC PyInit__cwrite(void) { return PyModule_Create(&moddef); }
+PyMODINIT_FUNC PyInit__cwrite(void) {
+    PyObject *m = PyModule_Create(&moddef);
+    if (!m)
+        return NULL;
+    if (PyModule_AddStringConstant(m, "__build__", __build__) < 0) {
+        Py_DECREF(m);
+        return NULL;
+    }
+    return m;
+}
