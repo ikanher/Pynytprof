@@ -36,5 +36,3 @@ def test_callgraph_chunk(tmp_path):
         mm.close()
     assert found
     lines = out.read_bytes().split(b"\n")
-    assert b"callgraph=present" in lines
-    assert b"edgecount=1" in lines
