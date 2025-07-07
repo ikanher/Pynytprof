@@ -17,10 +17,14 @@ def verify(path: str, quiet: bool = False) -> bool:
             first = f.read(len(ASCII_PREFIX))
             if first == ASCII_PREFIX:
                 while True:
+                    pos = f.tell()
                     line = f.readline()
                     if not line:
                         raise ValueError("truncated header")
                     if line == b"\n":
+                        break
+                    if not line.startswith((b"#", b":", b"!")):
+                        f.seek(pos)
                         break
                 major = MAJOR
                 minor = MINOR

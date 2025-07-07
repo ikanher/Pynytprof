@@ -22,6 +22,11 @@ def read(path: str) -> dict:
         major = _MAJOR
         minor = _MINOR
         while True:
+            if offset >= len(data):
+                raise ValueError("truncated header")
+            if data[offset:offset+1] in _CHUNK_START:
+                break
+            pos = offset
             line_end = data.find(b"\n", offset)
             if line_end == -1:
                 raise ValueError("truncated header")
@@ -29,15 +34,17 @@ def read(path: str) -> dict:
             offset = line_end + 1
             if line == b"":
                 break
-            if line.startswith(b"#"):
+            if line.startswith((b"#", b":", b"!")):
+                if line.startswith(b":") and b"=" in line:
+                    k, v = line[1:].split(b"=", 1)
+                    try:
+                        attrs[k.decode()] = int(v)
+                    except ValueError:
+                        attrs[k.decode()] = v.decode()
                 continue
-            if not line.startswith(b":") or b"=" not in line:
-                raise ValueError("bad header line")
-            k, v = line[1:].split(b"=", 1)
-            try:
-                attrs[k.decode()] = int(v)
-            except ValueError:
-                attrs[k.decode()] = v.decode()
+            else:
+                offset = pos
+                break
     else:
         if data[:8] != _MAGIC:
             raise ValueError("bad header")
