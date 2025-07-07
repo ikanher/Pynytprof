@@ -1,0 +1,2 @@
+#define NYTPROF_MAJOR 5
+#define NYTPROF_MINOR 0

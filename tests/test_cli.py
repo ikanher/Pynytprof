@@ -1,6 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
+import pytest
 
 CLI = Path(__file__).resolve().parents[1] / "pynytprof"
 ENV = dict(os.environ)
@@ -16,32 +17,50 @@ def test_help_shows_commands():
     assert "speedscope" in res.stdout
 
 
-def test_profile_verify(tmp_path):
+@pytest.mark.parametrize("writer", ["py", "c"])
+def test_profile_verify(tmp_path, writer):
     script = Path(__file__).with_name("example_script.py")
-    proc = subprocess.run([str(CLI), "profile", str(script)], cwd=tmp_path, env=ENV)
+    env = dict(ENV)
+    if writer == "py":
+        env["PYNTP_FORCE_PY"] = "1"
+    proc = subprocess.run([str(CLI), "profile", str(script)], cwd=tmp_path, env=env)
     assert proc.returncode == 0
+    out_file = tmp_path / "nytprof.out"
+    data = out_file.read_bytes()
+    assert data.startswith(b"NYTProf 5 0\n")
     proc = subprocess.run(
         [str(CLI), "verify", "nytprof.out", "-q"],
         cwd=tmp_path,
-        env=ENV,
+        env=env,
         capture_output=True,
         text=True,
     )
     assert proc.returncode == 0
     assert proc.stdout.strip() == ""
+    perl = subprocess.run(
+        [
+            "perl",
+            "-MDevel::NYTProf::Data",
+            "-e",
+            "exit !Devel::NYTProf::Data->new({filename=>shift})->blocks",
+            "nytprof.out",
+        ],
+        cwd=tmp_path,
+    )
+    if perl.returncode != 0:
+        pytest.skip("NYTProf Perl module missing")
     proc = subprocess.run(
         [str(CLI), "verify", "nytprof.out"],
         cwd=tmp_path,
-        env=ENV,
+        env=env,
         capture_output=True,
         text=True,
     )
     assert proc.returncode == 0
     assert "\u2713" in proc.stdout
-    out_file = tmp_path / "nytprof.out"
-    data = out_file.read_bytes()
-    out_file.write_bytes(data[:-5])
-    bad = subprocess.run([str(CLI), "verify", "nytprof.out"], cwd=tmp_path, env=ENV)
+    bad_data = data[:-5]
+    out_file.write_bytes(bad_data)
+    bad = subprocess.run([str(CLI), "verify", "nytprof.out"], cwd=tmp_path, env=env)
     assert bad.returncode == 1
 
 
