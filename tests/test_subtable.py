@@ -38,7 +38,8 @@ def test_subtable_chunk(tmp_path):
                 break
         mm.close()
     assert found
-    header_lines = out.read_bytes().split(b"\n")
+    data = out.read_bytes()
+    header_lines = data[16:].split(b"\n")
     assert b"subcount=2" in header_lines
     assert b"has_subs=1" in header_lines
 
