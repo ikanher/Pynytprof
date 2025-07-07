@@ -1,24 +1,41 @@
 import subprocess
 import struct
+import os
 
 import pytest
 
 from pynytprof.writer import Writer, _MAGIC, _MAJOR, _MINOR
 
 
-def test_binary_header(tmp_path):
-    out = tmp_path / "out.nyt"
-    with Writer(str(out)):
-        pass
-    data = out.read_bytes()[:32]
-    expected = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
-    assert data.startswith(expected)
-    assert data[16:21] == b"file="
-    res = subprocess.run([
+def test_header_format(tmp_path):
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        with Writer("nytprof.out"):
+            pass
+    finally:
+        os.chdir(cwd)
+    out = tmp_path / "nytprof.out"
+    hdr = out.read_bytes()[:32]
+    assert hdr[:8] == _MAGIC
+    assert hdr[8:12] == b"\x05\x00\x00\x00"
+    assert hdr[12:16] == b"\x00\x00\x00\x00"
+    assert b"\nfile=" in hdr
+
+
+def test_nytprofhtml(tmp_path):
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        with Writer("nytprof.out"):
+            pass
+    finally:
+        os.chdir(cwd)
+    out = tmp_path / "nytprof.out"
+    subprocess.run([
         "perl",
         "-MDevel::NYTProf::Data",
         "-e",
         "exit 0",
         str(out),
-    ])
-    assert res.returncode == 0
+    ], check=True)
