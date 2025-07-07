@@ -78,6 +78,18 @@ the boundary and contract, not the language.
 **Q:** *Do I need to update this file when I move a function?*  
 **A:** Only if you add, remove, or rename an agent-level entry-point.
 
+**Q:** *What's the header format?*
+**A:** There an xxd dump of a sample output generated from perl at
+       `vendor/NYTProf_refs/sample_nytprof.out.xxd` that you can use for
+       checking the header. Note that you shouldn't look at the FULL file
+       as it is compressed as specified by the format.
+
+       There's also a tiny version of the XS code at
+       `vendor/NYTProf_refs/NYTProf.xs`. Note that it only contains the
+       headers and the loading routine. Everything else is stripped.
+
+       You should NEVER modify these files.
+
 ---
 
-_Last updated: 2025-07-05_
+_Last updated: 2025-07-07_
