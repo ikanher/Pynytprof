@@ -34,6 +34,38 @@ class _StringTable:
         return bytes(out)
 
 
+class _SubTable:
+    def __init__(self, tbl: _StringTable) -> None:
+        self._tbl = tbl
+        self._records: list[tuple[int, int, int, int, int, int]] = []
+        self._sub_id_counter = 0
+
+    def add(
+        self, file_id: int, start: int, end: int, name: str, pkg: str
+    ) -> int:
+        sub_id = self._sub_id_counter
+        self._sub_id_counter += 1
+        name_idx = self._tbl.add(name)
+        pkg_idx = self._tbl.add(pkg)
+        self._records.append((sub_id, file_id, start, end, name_idx, pkg_idx))
+        return sub_id
+
+    def serialize(self) -> bytes:
+        if not self._records:
+            return b""
+        st = struct.Struct("<IIIIII")
+        payload = bytearray(len(self._records) * st.size)
+        off = 0
+        for rec in self._records:
+            st.pack_into(payload, off, *rec)
+            off += st.size
+        return bytes(payload)
+
+    @property
+    def count(self) -> int:
+        return len(self._records)
+
+
 class Writer:
     """Minimal NYTProf file writer used for tests."""
 
@@ -44,11 +76,28 @@ class Writer:
         self._header_bytes = b""
         self._compressed_used = False
         self._table = _StringTable()
+        self._sub_table = _SubTable(self._table)
         self._table_written = False
         self._file_id_counter = 0
         self._file_count = 0
         self._start_ns = 0
         self._stmts: dict[int, dict[int, list[int]]] = {}
+        self._file_records: list[bytes] = []
+        self._file_map: dict[str, int] = {}
+
+    @property
+    def sub_table(self) -> _SubTable:
+        return self._sub_table
+
+    def add_file(self, path: str, is_main: bool = False) -> int:
+        fid = self._file_map.get(path)
+        if fid is not None:
+            return fid
+        rec = self._file_record(path, is_main)
+        fid = struct.unpack_from("<I", rec)[0]
+        self._file_records.append(rec)
+        self._file_map[path] = fid
+        return fid
 
     def _compress(self, tag: bytes, data: bytes) -> bytes:
         if not data:
@@ -98,8 +147,11 @@ class Writer:
             lines.append(b"compressed=1")
         if b"has_stmt=1" not in lines:
             lines.append(b"has_stmt=1")
+        if b"has_subs=1" not in lines:
+            lines.append(b"has_subs=1")
         lines.append(b"has_end=1")
         lines.append(f"filecount={self._file_count}".encode("ascii"))
+        lines.append(f"subcount={self._sub_table.count}".encode("ascii"))
         lines.append(b"stringtable=present")
         lines.append(f"stringcount={len(self._table._strings)}".encode("ascii"))
         lines.append(b"")
@@ -121,8 +173,13 @@ class Writer:
             if not self._table_written:
                 self._write_chunk(TAG_T, self._table.serialize())
                 self._table_written = True
+            if self._file_records:
+                self._write_chunk(b"F", b"".join(self._file_records))
+                self._file_records.clear()
             for fid in list(self._stmts):
                 self._flush_statement_file(fid)
+            if self._sub_table.count:
+                self._write_chunk(b"S", self._sub_table.serialize())
             end_ns = time.time_ns() - self._start_ns
             self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
