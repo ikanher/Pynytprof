@@ -1,9 +1,9 @@
 import struct
 import zlib
-from pathlib import Path
 
 import pytest
 from pynytprof.writer import Writer
+import mmap
 
 
 def test_text_header(tmp_path):
@@ -80,3 +80,36 @@ def test_close_writes_E_chunk(tmp_path):
     header_lines = buf[: hdr_end - 2].split(b"\n")
     assert b"has_end=1" in header_lines
     assert b"filecount=1" in header_lines
+
+
+def test_statement_chunk(tmp_path):
+    out = tmp_path / "out.nyt"
+    foo = tmp_path / "foo.py"
+    bar = tmp_path / "bar.py"
+    foo.write_text("print('foo')")
+    bar.write_text("print('bar')")
+    with Writer(str(out)) as w:
+        w._write_file_chunk([(str(foo), True), (str(bar), False)])
+        for ln in range(1, 6):
+            w.record_statement(0, ln, None)
+            w.record_statement(1, ln, None)
+
+    with out.open("rb") as fh:
+        mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        hdr_end = mm.find(b"\n\n") + 2
+        off = hdr_end
+        found = False
+        while off < mm.size():
+            tag = mm[off : off + 1]
+            length = struct.unpack_from("<I", mm, off + 1)[0]
+            off += 5
+            payload = mm[off : off + length]
+            off += length
+            if tag == b"D":
+                data = zlib.decompress(payload)
+                assert struct.unpack_from("<I", data, 0)[0] == 0
+                assert len(data) % 20 == 0
+                found = True
+                break
+        mm.close()
+    assert found, "D chunk not found"
