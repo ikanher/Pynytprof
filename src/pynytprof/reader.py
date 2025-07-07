@@ -6,37 +6,64 @@ __all__ = ["read"]
 _MAGIC = b"NYTPROF\0"
 _MAJOR = 5
 _MINOR = 0
+_ASCII_PREFIX = b"NYTProf 5 0\n"
 _CHUNK_START = b"ACDFSET"
 
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if data[:8] != _MAGIC:
-        raise ValueError("bad header")
-    if len(data) < 16:
-        raise ValueError("truncated header")
-    major, minor = struct.unpack_from("<II", data, 8)
-    if (major, minor) != (_MAJOR, _MINOR):
-        raise ValueError("bad version")
-    offset = 16
     attrs = {}
-    while offset < len(data):
-        end = data.find(b"\0", offset)
-        if end == -1:
-            raise ValueError("bad attrs")
-        item = data[offset:end]
-        offset = end + 1
-        if not item:
-            break
-        if b"=" not in item:
-            break
-        key, val = item.split(b"=", 1)
-        try:
-            attrs[key.decode()] = int(val)
-        except ValueError:
-            attrs[key.decode()] = val.decode()
-        if offset < len(data) and data[offset:offset+1] in _CHUNK_START:
-            break
+    if data.startswith(_ASCII_PREFIX):
+        offset = 0
+        line_end = data.find(b"\n")
+        if line_end == -1:
+            raise ValueError("truncated header")
+        offset = line_end + 1
+        major = _MAJOR
+        minor = _MINOR
+        while True:
+            line_end = data.find(b"\n", offset)
+            if line_end == -1:
+                raise ValueError("truncated header")
+            line = data[offset:line_end]
+            offset = line_end + 1
+            if line == b"":
+                break
+            if line.startswith(b"#"):
+                continue
+            if not line.startswith(b":") or b"=" not in line:
+                raise ValueError("bad header line")
+            k, v = line[1:].split(b"=", 1)
+            try:
+                attrs[k.decode()] = int(v)
+            except ValueError:
+                attrs[k.decode()] = v.decode()
+    else:
+        if data[:8] != _MAGIC:
+            raise ValueError("bad header")
+        if len(data) < 16:
+            raise ValueError("truncated header")
+        major, minor = struct.unpack_from("<II", data, 8)
+        if (major, minor) != (_MAJOR, _MINOR):
+            raise ValueError("bad version")
+        offset = 16
+        while offset < len(data):
+            end = data.find(b"\0", offset)
+            if end == -1:
+                raise ValueError("bad attrs")
+            item = data[offset:end]
+            offset = end + 1
+            if not item:
+                break
+            if b"=" not in item:
+                break
+            key, val = item.split(b"=", 1)
+            try:
+                attrs[key.decode()] = int(val)
+            except ValueError:
+                attrs[key.decode()] = val.decode()
+            if offset < len(data) and data[offset:offset+1] in _CHUNK_START:
+                break
     result = {
         "header": (major, minor),
         "attrs": attrs,

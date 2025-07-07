@@ -7,33 +7,46 @@ __all__ = ["verify"]
 MAGIC = b"NYTPROF\0"
 MAJOR = 5
 MINOR = 0
+ASCII_PREFIX = b"NYTProf 5 0\n"
 
 
 def verify(path: str, quiet: bool = False) -> bool:
     """Stream-verify a NYTProf file."""
     try:
         with open(path, "rb") as f:
-            if f.read(8) != MAGIC:
-                raise ValueError("bad header")
-            maj_b = f.read(4)
-            min_b = f.read(4)
-            if len(maj_b) != 4 or len(min_b) != 4:
-                raise ValueError("truncated version")
-            major = struct.unpack("<I", maj_b)[0]
-            minor = struct.unpack("<I", min_b)[0]
-            if (major, minor) != (MAJOR, MINOR):
-                raise ValueError("bad version")
-            while True:
-                b = f.read(1)
-                if not b:
-                    raise ValueError("truncated attrs")
-                if b in b"ACDFSET":
-                    f.seek(-1, 1)
-                    break
-                while b != b"\0":
+            first = f.read(len(ASCII_PREFIX))
+            if first == ASCII_PREFIX:
+                while True:
+                    line = f.readline()
+                    if not line:
+                        raise ValueError("truncated header")
+                    if line == b"\n":
+                        break
+                major = MAJOR
+                minor = MINOR
+            else:
+                f.seek(0)
+                if f.read(8) != MAGIC:
+                    raise ValueError("bad header")
+                maj_b = f.read(4)
+                min_b = f.read(4)
+                if len(maj_b) != 4 or len(min_b) != 4:
+                    raise ValueError("truncated version")
+                major = struct.unpack("<I", maj_b)[0]
+                minor = struct.unpack("<I", min_b)[0]
+                if (major, minor) != (MAJOR, MINOR):
+                    raise ValueError("bad version")
+                while True:
                     b = f.read(1)
                     if not b:
                         raise ValueError("truncated attrs")
+                    if b in b"ACDFSET":
+                        f.seek(-1, 1)
+                        break
+                    while b != b"\0":
+                        b = f.read(1)
+                        if not b:
+                            raise ValueError("truncated attrs")
             last = None
             count = 0
             while True:

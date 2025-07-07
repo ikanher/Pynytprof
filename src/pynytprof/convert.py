@@ -12,15 +12,19 @@ __all__ = ["to_html", "to_speedscope"]
 def _parse(path: str) -> tuple[dict, dict, dict, list, list]:
     data = Path(path).read_bytes()
     PREFIX = b"NYTPROF\0"
-    if data[:8] != PREFIX:
-        raise ValueError("bad header")
-    if len(data) < 20:
-        raise ValueError("truncated header")
-    version = struct.unpack_from("<I", data, 8)[0]
-    if version != 5:
-        raise ValueError("bad version")
-    header_len = struct.unpack_from("<Q", data, 12)[0]
-    off = 20 + header_len
+    if data.startswith(PREFIX):
+        if len(data) < 20:
+            raise ValueError("truncated header")
+        version = struct.unpack_from("<I", data, 8)[0]
+        if version != 5:
+            raise ValueError("bad version")
+        header_len = struct.unpack_from("<Q", data, 12)[0]
+        off = 20 + header_len
+    else:
+        from .reader import read
+        d = read(path)
+        defs = {sid: {"fid": fid, "name": name, "sl": sl, "el": el} for sid, fid, sl, el, name in d["defs"]}
+        return d["attrs"], d["files"], defs, d["calls"], d["records"]
     attrs: dict[str, int] = {}
     files: dict[int, dict] = {}
     defs: dict[int, dict] = {}
