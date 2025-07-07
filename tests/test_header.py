@@ -16,11 +16,11 @@ def test_header_format(tmp_path):
     finally:
         os.chdir(cwd)
     out = tmp_path / "nytprof.out"
-    hdr = out.read_bytes()[:32]
+    hdr = out.read_bytes()
     assert hdr[:8] == _MAGIC
-    assert hdr[8:12] == b"\x05\x00\x00\x00"
-    assert hdr[12:16] == b"\x00\x00\x00\x00"
-    assert b"\nfile=" in hdr
+    assert hdr[8:16] == b"\x05\x00\x00\x00\x00\x00\x00\x00"
+    assert b"\n\n" in hdr
+    assert b"\0" not in hdr[16:128]
 
 
 def test_nytprofhtml(tmp_path):

@@ -202,10 +202,8 @@ class Writer:
     def _rewrite_header(self) -> None:
         data = self._path.read_bytes()
         rest = data[len(self._header_bytes) :]
-        header_magic = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
+        header_magic = _MAGIC + struct.pack("<II", 5, 0)
         lines = self._header_bytes[len(header_magic) :].rstrip(b"\n").split(b"\n")
-        if lines and lines[0] == b"":
-            lines = lines[1:]
         if lines and lines[-1] == b"":
             lines = lines[:-1]
         if self._compressed_used and b"compressed=1" not in lines:
@@ -226,8 +224,7 @@ class Writer:
         lines.append(f"subcount={self._sub_table.count}".encode("ascii"))
         lines.append(b"stringtable=present")
         lines.append(f"stringcount={len(self._table._strings)}".encode("ascii"))
-        lines.append(b"")
-        new_ascii = b"\n" + b"\n".join(lines) + b"\n"
+        new_ascii = b"\n".join(lines) + b"\n\n"
         new_header = header_magic + new_ascii
         self._path.write_bytes(new_header + rest)
         self._header_bytes = new_header
@@ -280,11 +277,11 @@ class Writer:
         ]
         if self._compressed_used:
             attrs.append("compressed=1")
-        ascii_hdr = ("\n" + "\n".join(attrs) + "\n\n").encode("ascii")
+        ascii_hdr = ("\n".join(attrs) + "\n\n").encode("ascii")
         self._fh.write(_MAGIC)
-        self._fh.write(struct.pack("<II", _MAJOR, _MINOR))
+        self._fh.write(struct.pack("<II", 5, 0))
         self._fh.write(ascii_hdr)
-        self._header_bytes = _MAGIC + struct.pack("<II", _MAJOR, _MINOR) + ascii_hdr
+        self._header_bytes = _MAGIC + struct.pack("<II", 5, 0) + ascii_hdr
         self._header_written = True
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
