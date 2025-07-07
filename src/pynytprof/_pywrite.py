@@ -4,6 +4,10 @@ from __future__ import annotations
 from pathlib import Path
 import struct
 
+_MAGIC = b"NYTPROF\0"
+_MAJOR = 5
+_MINOR = 0
+
 
 def _kv(key: str, value: str) -> bytes:
     return f"{key}={value}\0".encode()
@@ -32,8 +36,7 @@ def write(
                 _kv("perl", "python"),
             ]
         )
-        h_chunk = b"H" + struct.pack("<I", len(kv)) + kv
-        hdr = struct.pack("<8sIQ", b"NYTPROF\0", 5, len(h_chunk)) + h_chunk
+        hdr = _MAGIC + struct.pack("<II", _MAJOR, _MINOR) + kv
         f.write(hdr)
         a_payload = f"ticks_per_sec={ticks_per_sec}\0start_time={start_ns}\0".encode()
         f.write(_chunk(b"A", a_payload))

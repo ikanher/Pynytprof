@@ -3,9 +3,10 @@ import subprocess
 import sys
 import time
 import os
+import struct
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from pynytprof.reader import read, PREFIX, VERSION
+from pynytprof.reader import read, _MAGIC as PREFIX, _MAJOR, _MINOR
 
 
 import pytest
@@ -28,11 +29,10 @@ def test_format(tmp_path, hide_cwrite):
     )
     assert out.exists()
     with out.open("rb") as f:
-        prefix = f.read(12)
-        assert prefix == PREFIX + VERSION.to_bytes(4, "little")
-        hdr_len = int.from_bytes(f.read(8), "little")
-        h = f.read(hdr_len)
-    assert h.startswith(b"H")
+        prefix = f.read(16)
+        assert prefix == PREFIX + struct.pack("<II", _MAJOR, _MINOR)
+    hdr = out.read_bytes()[:32]
+    assert hdr.startswith(b"NYTPROF\x00\x05\x00\x00\x00\x00\x00\x00\x00")
     start = time.perf_counter()
     data = read(str(out))
     elapsed_ms = (time.perf_counter() - start) * 1000

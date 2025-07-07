@@ -1,62 +1,52 @@
-import struct
 from pathlib import Path
+import struct
 
 __all__ = ["read"]
 
-
-PREFIX = b"NYTPROF\0"
-VERSION = 5
+_MAGIC = b"NYTPROF\0"
+_MAJOR = 5
+_MINOR = 0
+_CHUNK_START = b"ACDFSET"
 
 
 def read(path: str) -> dict:
     data = Path(path).read_bytes()
-    if data[:8] != PREFIX:
+    if data[:8] != _MAGIC:
         raise ValueError("bad header")
-    if len(data) < 20:
+    if len(data) < 16:
         raise ValueError("truncated header")
-    version = struct.unpack_from("<I", data, 8)[0]
-    if version != VERSION:
+    major, minor = struct.unpack_from("<II", data, 8)
+    if (major, minor) != (_MAJOR, _MINOR):
         raise ValueError("bad version")
-    header_len = struct.unpack_from("<Q", data, 12)[0]
-    if len(data) < 20 + header_len:
-        raise ValueError("truncated payload")
-    h_chunk = data[20 : 20 + header_len]
-    if h_chunk[:1] != b"H":
-        raise ValueError("bad H tag")
-    h_len = struct.unpack_from("<I", h_chunk, 1)[0]
-    if h_len != len(h_chunk) - 5:
-        raise ValueError("bad H length")
-    attrs_blob = h_chunk[5:]
-    if attrs_blob and attrs_blob[-1] != 0:
-        raise ValueError("H not nul terminated")
-    offset = 20 + header_len
+    offset = 16
+    attrs = {}
+    while offset < len(data):
+        end = data.find(b"\0", offset)
+        if end == -1:
+            raise ValueError("bad attrs")
+        item = data[offset:end]
+        offset = end + 1
+        if not item:
+            break
+        if b"=" not in item:
+            break
+        key, val = item.split(b"=", 1)
+        try:
+            attrs[key.decode()] = int(val)
+        except ValueError:
+            attrs[key.decode()] = val.decode()
+        if offset < len(data) and data[offset:offset+1] in _CHUNK_START:
+            break
     result = {
-        "header": (version, 0),
-        "attrs": {},
-        "files": {},
-        "defs": [],
-        "calls": [],
-        "records": [],
-    }
-    if attrs_blob:
-        for item in attrs_blob[:-1].split(b"\0"):
-            if b"=" not in item:
-                raise ValueError("bad attr")
-            k, v = item.split(b"=", 1)
-            try:
-                result["attrs"][k.decode()] = int(v)
-            except ValueError:
-                result["attrs"][k.decode()] = v.decode()
-    result = {
-        "header": (5, 0),
-        "attrs": {},
+        "header": (major, minor),
+        "attrs": attrs,
         "files": {},
         "defs": [],
         "calls": [],
         "records": [],
     }
     while offset < len(data):
-        tok = data[offset : offset + 1]
+        tok = data[offset:offset+1]
         if not tok:
             raise ValueError("unexpected EOF")
         tok = tok.decode()
@@ -67,14 +57,13 @@ def read(path: str) -> dict:
         offset += 4
         if offset + length > len(data):
             raise ValueError("truncated payload")
-        payload = data[offset : offset + length]
+        payload = data[offset:offset+length]
         offset += length
 
         if tok == "A":
             if not payload or payload[-1] != 0:
                 raise ValueError("attrs not nul terminated")
-            attrs = payload[:-1].split(b"\0")
-            for item in attrs:
+            for item in payload[:-1].split(b"\0"):
                 if b"=" not in item:
                     raise ValueError("bad attr")
                 k, v = item.split(b"=", 1)

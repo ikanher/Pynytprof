@@ -23,8 +23,10 @@ static void put_u64le(unsigned char *p, uint64_t v) {
 
 static void write_header(FILE *fp, uint64_t start_ns) {
     fwrite("NYTPROF\0", 1, 8, fp);
-    uint32_t ver = 5;
-    fwrite(&ver, 4, 1, fp);
+    uint32_t major = 5;
+    uint32_t minor = 0;
+    fwrite(&major, 4, 1, fp);
+    fwrite(&minor, 4, 1, fp);
 
     char buf[256];
     int off = 0;
@@ -33,14 +35,7 @@ static void write_header(FILE *fp, uint64_t start_ns) {
                    (uint64_t)(start_ns / 1000000000ULL), 0);
     off += sprintf(buf + off, "perl=python%c", 0);
 
-    uint8_t tag = 'H';
-    uint32_t payload_len = off;
-    uint64_t header_len = 1 + 4 + payload_len;
-
-    fwrite(&header_len, 8, 1, fp);
-    fwrite(&tag, 1, 1, fp);
-    fwrite(&payload_len, 4, 1, fp);
-    fwrite(buf, 1, payload_len, fp);
+    fwrite(buf, 1, off, fp);
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
