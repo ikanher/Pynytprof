@@ -20,7 +20,7 @@ def test_ascii_header(tmp_path):
             'perl',
             '-MDevel::NYTProf::Data',
             '-e',
-            'Devel::NYTProf::Data->new(shift)',
+            'Devel::NYTProf::Data->new({filename=>shift})',
             str(out),
         ],
         capture_output=True,

@@ -27,7 +27,7 @@ def test_perl_lines(tmp_path):
         "perl",
         "-MDevel::NYTProf::Data",
         "-e",
-        "print Devel::NYTProf::Data->new(shift)->lines",
+        "print Devel::NYTProf::Data->new({filename=>shift})->lines",
         str(out_file),
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
