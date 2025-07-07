@@ -1,6 +1,6 @@
-import subprocess
-import struct
 import os
+import struct
+import subprocess
 
 import pytest
 
@@ -15,12 +15,22 @@ def test_header_format(tmp_path):
             pass
     finally:
         os.chdir(cwd)
-    out = tmp_path / "nytprof.out"
-    hdr = out.read_bytes()[:32]
-    assert hdr[:8] == _MAGIC
-    assert hdr[8:12] == b"\x05\x00\x00\x00"
-    assert hdr[12:16] == b"\x00\x00\x00\x00"
-    assert b"\nfile=" in hdr
+    hdr = (tmp_path / "nytprof.out").read_bytes()[:64]
+    expected = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
+    assert hdr.startswith(expected)
+    assert b"file=" in hdr and b"\nfile=" not in hdr[20:24]
+    assert b"\x00" not in hdr[16:]
+    subprocess.run(
+        [
+            "perl",
+            "-MDevel::NYTProf::Data",
+            "-e",
+            "Devel::NYTProf::Data->new(shift)",
+            "nytprof.out",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
 
 
 def test_nytprofhtml(tmp_path):
@@ -31,11 +41,8 @@ def test_nytprofhtml(tmp_path):
             pass
     finally:
         os.chdir(cwd)
-    out = tmp_path / "nytprof.out"
-    subprocess.run([
-        "perl",
-        "-MDevel::NYTProf::Data",
-        "-e",
-        "exit 0",
-        str(out),
-    ], check=True)
+    subprocess.run(
+        ["nytprofhtml", "-f", "nytprof.out", "-o", "/tmp/r"],
+        cwd=tmp_path,
+        check=True,
+    )
