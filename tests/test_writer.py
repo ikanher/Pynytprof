@@ -1,8 +1,11 @@
 import struct
 import zlib
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest
-from pynytprof.writer import Writer, _MAGIC, _MAJOR, _MINOR
+from pynytprof.writer import Writer, _MAGIC
 import mmap
 
 
@@ -10,10 +13,8 @@ def test_text_header(tmp_path):
     out = tmp_path / "out.nyt"
     with Writer(str(out)):
         pass
-    hdr = out.read_bytes()[:32]
-    expected = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
-    assert hdr.startswith(expected)
-    assert b"file=" in hdr
+    hdr = out.read_bytes()[:16]
+    assert hdr.startswith(_MAGIC)
 
 
 @pytest.mark.parametrize(
@@ -30,7 +31,9 @@ def test_chunk_compression(tmp_path, tag, data):
     with Writer(str(out)) as w:
         w._write_chunk(tag, data)
     buf = out.read_bytes()
-    hdr_end = buf.index(b"\n\n") + 2
+    hdr_end = 0
+    for _ in range(10):
+        hdr_end = buf.index(b"\n", hdr_end) + 1
     on_disk = buf[hdr_end:]
     assert on_disk[0:1] == tag
     payload_len = struct.unpack("<I", on_disk[1:5])[0]
@@ -45,7 +48,9 @@ def test_file_chunk_uses_string_indexes(tmp_path):
     with Writer(str(out)) as w:
         w._write_file_chunk([(str(foo), True)])
     buf = out.read_bytes()
-    hdr_end = buf.index(b"\n\n") + 2
+    hdr_end = 0
+    for _ in range(10):
+        hdr_end = buf.index(b"\n", hdr_end) + 1
     after = buf[hdr_end:]
     assert after[0:1] == b"T"
     t_len = struct.unpack_from("<I", after, 1)[0]
@@ -68,7 +73,9 @@ def test_close_writes_E_chunk(tmp_path):
     with Writer(str(out)) as w:
         w._write_file_chunk([(str(foo), True)])
     buf = out.read_bytes()
-    hdr_end = buf.index(b"\n\n") + 2
+    hdr_end = 0
+    for _ in range(10):
+        hdr_end = buf.index(b"\n", hdr_end) + 1
     after = buf[hdr_end:]
     off = 0
     last_tag = None
@@ -94,7 +101,9 @@ def test_statement_chunk(tmp_path):
 
     with out.open("rb") as fh:
         mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-        hdr_end = mm.find(b"\n\n") + 2
+        hdr_end = 0
+        for _ in range(10):
+            hdr_end = mm.find(b"\n", hdr_end) + 1
         off = hdr_end
         found = False
         while off < mm.size():

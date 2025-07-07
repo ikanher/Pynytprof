@@ -22,7 +22,9 @@ def test_subtable_chunk(tmp_path):
         w.sub_table.add(fid2, 3, 4, "fb", "pkg2")
     with out.open("rb") as fh:
         mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-        hdr_end = mm.find(b"\n\n") + 2
+        hdr_end = 0
+        for _ in range(10):
+            hdr_end = mm.find(b"\n", hdr_end) + 1
         off = hdr_end
         found = False
         while off < mm.size():

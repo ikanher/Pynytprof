@@ -7,6 +7,7 @@
 #include <time.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <assert.h>
 #include "nytp_version.h"
 
 static void dbg_chunk(char tok, uint32_t len) {
@@ -26,27 +27,29 @@ static void put_u64le(unsigned char *p, uint64_t v) {
     put_u32le(p + 4, (uint32_t)(v >> 32));
 }
 
-static void write_header(FILE *fp, uint64_t start_ns) {
+static const char *rfc_2822_time(void) {
+    static char buf[64];
     time_t now = time(NULL);
     struct tm tm;
     gmtime_r(&now, &tm);
-    char now_buf[64];
-    strftime(now_buf, sizeof(now_buf), "%a, %d %b %Y %H:%M:%S +0000", &tm);
+    strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S +0000", &tm);
+    return buf;
+}
 
-    long hz = sysconf(_SC_CLK_TCK);
-    if (hz <= 0)
-        hz = 100;
-
+static const char *platform_name(void) {
+    static char buf[64];
     struct utsname un;
     const char *os = "unknown";
     if (uname(&un) == 0)
         os = un.sysname;
-    char osbuf[64];
     size_t i;
-    for (i = 0; os[i] && i < sizeof(osbuf) - 1; i++)
-        osbuf[i] = (char)tolower((unsigned char)os[i]);
-    osbuf[i] = '\0';
+    for (i = 0; os[i] && i < sizeof(buf) - 1; i++)
+        buf[i] = (char)tolower((unsigned char)os[i]);
+    buf[i] = '\0';
+    return buf;
+}
 
+static void emit_header_ascii(FILE *fp, long basetime) {
     char buf[512];
     int n = snprintf(buf, sizeof(buf),
                      "NYTProf %d %d\n"
@@ -59,9 +62,11 @@ static void write_header(FILE *fp, uint64_t start_ns) {
                      ":ticks_per_sec=10000000\n"
                      ":osname=%s\n"
                      ":hz=%ld\n",
-                     NYTPROF_MAJOR, NYTPROF_MINOR, now_buf,
-                     (long)(start_ns / 1000000000ULL), Py_GetVersion(),
-                     sizeof(double), osbuf, hz);
+                     NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
+                     PY_VERSION, sizeof(double), platform_name(),
+                     sysconf(_SC_CLK_TCK));
+    assert(n > 0 && n < (int)sizeof(buf));
+    assert(!memchr(buf, '\0', (size_t)n));
     fwrite(buf, 1, (size_t)n, fp);
 }
 
@@ -97,7 +102,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     if (!fp)
         return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 
-    write_header(fp, start_ns);
+    emit_header_ascii(fp, (long)(start_ns / 1000000000ULL));
 
     char abuf[128];
     int apos = 0;

@@ -28,7 +28,9 @@ def run_profile(tmp_path):
 def parse_a_chunk(path: Path):
     with path.open("rb") as fh:
         mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-        hdr_end = mm.find(b"\n\n") + 2
+        hdr_end = 0
+        for _ in range(10):
+            hdr_end = mm.find(b"\n", hdr_end) + 1
         off = hdr_end
         while off < mm.size():
             tag = mm[off:off+1]

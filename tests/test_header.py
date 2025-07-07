@@ -1,49 +1,23 @@
 import os
-import struct
 import subprocess
-import pathlib
+import sys
+from pathlib import Path
 
 import pytest
 
-from pynytprof.writer import Writer
 
-
-def test_header_format(tmp_path):
-    p = tmp_path / "nytprof.out"
-    with Writer(str(p)):
-        pass
-    hdr = p.read_bytes()[:64]
-    assert hdr[:8] == b"NYTPROF\x00"
-    assert hdr[8:12] == struct.pack("<I", 5)
-    assert hdr[12:16] == struct.pack("<I", 0)
-    assert b"\x00" not in hdr[16:32]
-    assert b"file=" in hdr
-    res = subprocess.run(
-        [
-            "perl",
-            "-MDevel::NYTProf::Data",
-            "-e",
-            "Devel::NYTProf::Data->new({filename => shift})",
-            str(p),
-        ],
-        capture_output=True,
+@pytest.mark.parametrize("writer", ["py", "c"])
+def test_ascii_header(tmp_path, writer):
+    env = os.environ.copy()
+    env["PYNYTPROF_WRITER"] = writer
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    if writer == "c":
+        import importlib.util
+        if importlib.util.find_spec("pynytprof._cwrite") is None:
+            pytest.skip("_cwrite missing")
+    out = tmp_path / "out"
+    subprocess.check_call(
+        [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"], env=env
     )
-    if res.returncode != 0:
-        pytest.skip("NYTProf Perl module missing")
-
-
-def test_nytprofhtml(tmp_path):
-    cwd = os.getcwd()
-    os.chdir(tmp_path)
-    try:
-        with Writer("nytprof.out"):
-            pass
-    finally:
-        os.chdir(cwd)
-    res = subprocess.run(
-        ["nytprofhtml", "-f", "nytprof.out", "-o", "/tmp/r"],
-        cwd=tmp_path,
-        capture_output=True,
-    )
-    if res.returncode != 0:
-        pytest.skip("nytprofhtml missing")
+    with out.open("rb") as f:
+        assert f.read(12) == b"NYTProf 5 0\n"

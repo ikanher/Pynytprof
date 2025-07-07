@@ -40,7 +40,9 @@ def _make_ascii_header(start_ns: int) -> bytes:
         f":osname={platform.system().lower()}",
         f":hz={hz}",
     ]
-    return ("\n".join(lines) + "\n").encode()
+    hdr = ("\n".join(lines) + "\n").encode()
+    assert b"\0" not in hdr
+    return hdr
 
 
 def _chunk(tok: bytes, payload: bytes) -> bytes:
@@ -86,6 +88,7 @@ class Writer:
             f":hz={hz}",
         ]
         hdr = ("\n".join(lines) + "\n").encode()
+        assert b"\0" not in hdr
         self._fh.write(hdr)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
