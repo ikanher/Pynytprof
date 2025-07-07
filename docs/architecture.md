@@ -12,6 +12,7 @@ This document explains the moving pieces of **Pynytprof** and how they work toge
 | `tracer.py` | Pure Python tracer used when no C tracer is available |
 | `reader.py` | Developer helper to decode NYTProf data |
 | `verify.py` | Stream verifier for NYTProf files |
+| `writer.py` | Minimal writer used for tests |
 
 ## Runtime flow
 
