@@ -11,10 +11,15 @@ def test_ascii_header(tmp_path):
     out = tmp_path / 'nytprof.out'
     with pw.Writer(str(out)):
         pass
-    raw = out.read_bytes()[:128]
-    assert raw.startswith(b'NYTProf 5 0\n')
-    assert b':ticks_per_sec=1000000000\n' in raw
-    assert b'\x00' not in raw
+    raw = out.read_bytes()
+    assert raw.startswith(b'NYTProf 5 0\n#Perl profile database')
+    assert b':ticks_per_sec=10000000\n' in raw
+    assert b'perl_version=' in raw
+    idx = 0
+    for _ in range(10):
+        idx = raw.index(b"\n", idx) + 1
+    hdr_end = idx
+    assert b"\x00" not in raw[:hdr_end]
     res = subprocess.run(
         [
             'perl',
