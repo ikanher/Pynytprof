@@ -2,7 +2,7 @@ import struct
 import zlib
 
 import pytest
-from pynytprof.writer import Writer
+from pynytprof.writer import Writer, _MAGIC, _MAJOR, _MINOR
 import mmap
 
 
@@ -10,8 +10,10 @@ def test_text_header(tmp_path):
     out = tmp_path / "out.nyt"
     with Writer(str(out)):
         pass
-    first = open(out, "rb").read().split(b"\n")[0]
-    assert first == b"file=" + str(out).encode()
+    hdr = out.read_bytes()[:32]
+    expected = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
+    assert hdr.startswith(expected)
+    assert b"file=" in hdr
 
 
 @pytest.mark.parametrize(
@@ -56,7 +58,7 @@ def test_file_chunk_uses_string_indexes(tmp_path):
     fid, pidx, didx, size, flags = struct.unpack("<IIIII", payload)
     assert pidx == 0
     assert didx == 1
-    header_lines = buf[: hdr_end - 2].split(b"\n")
+    header_lines = buf[16: hdr_end - 2].split(b"\n")
     assert b"stringtable=present" in header_lines
     assert b"stringcount=2" in header_lines
 
@@ -77,7 +79,7 @@ def test_close_writes_E_chunk(tmp_path):
         length = struct.unpack_from("<I", after, off + 1)[0]
         off += 5 + length
     assert last_tag == b"E"
-    header_lines = buf[: hdr_end - 2].split(b"\n")
+    header_lines = buf[16: hdr_end - 2].split(b"\n")
     assert b"has_end=1" in header_lines
     assert b"filecount=1" in header_lines
 

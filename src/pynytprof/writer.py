@@ -14,6 +14,10 @@ TAG_T = b"T"
 PREFIX = b"NYTPROF\0"
 VERSION = 5
 
+_MAGIC = b"NYTPROF\0"
+_MAJOR = 5
+_MINOR = 0
+
 
 class _StringTable:
     def __init__(self) -> None:
@@ -121,6 +125,8 @@ class Writer:
         self._header_written = False
         self._header_bytes = b""
         self._compressed_used = False
+        self._ticks_per_sec = 1_000_000_000
+        self._start_time = 0
         self._table = _StringTable()
         self._sub_table = _SubTable(self._table)
         self._callgraph = _CallGraph()
@@ -196,7 +202,8 @@ class Writer:
     def _rewrite_header(self) -> None:
         data = self._path.read_bytes()
         rest = data[len(self._header_bytes) :]
-        lines = self._header_bytes.rstrip(b"\n").split(b"\n")
+        header_magic = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
+        lines = self._header_bytes[len(header_magic) :].rstrip(b"\n").split(b"\n")
         if lines and lines[-1] == b"":
             lines = lines[:-1]
         if self._compressed_used and b"compressed=1" not in lines:
@@ -218,14 +225,15 @@ class Writer:
         lines.append(b"stringtable=present")
         lines.append(f"stringcount={len(self._table._strings)}".encode("ascii"))
         lines.append(b"")
-        new_header = b"\n".join(lines) + b"\n"
+        new_ascii = b"\n".join(lines) + b"\n"
+        new_header = header_magic + new_ascii
         self._path.write_bytes(new_header + rest)
         self._header_bytes = new_header
 
     def __enter__(self) -> "Writer":
         self._fh = self._path.open("wb")
         self._start_ns = time.time_ns()
-        self._write_text_header()
+        self._write_header()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -258,21 +266,21 @@ class Writer:
         self._rewrite_header()
         self._header_written = False
 
-    def _write_text_header(self) -> None:
+    def _write_header(self) -> None:
         if self._header_written or self._fh is None:
             return
+        self._start_time = int(time.time())
         lines = [
             f"file={self._path}",
             "version=5",
-            "ticks_per_sec=1000000000",
-            f"process_id={os.getpid()}",
-            f"start_time={int(time.time())}",
-            "has_stmt=1",
+            f"ticks_per_sec={self._ticks_per_sec}",
+            f"start_time={self._start_time}",
         ]
         if self._compressed_used:
             lines.append("compressed=1")
         lines.append("")
-        header = b"\n".join(line.encode("ascii") for line in lines) + b"\n"
+        ascii_hdr = ("\n".join(lines) + "\n").encode("ascii")
+        header = _MAGIC + struct.pack("<II", _MAJOR, _MINOR) + ascii_hdr
         self._fh.write(header)
         self._header_bytes = header
         self._header_written = True
