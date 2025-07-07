@@ -11,10 +11,7 @@ __all__ = ["Writer"]
 
 TAG_T = b"T"
 
-PREFIX = b"NYTPROF\0"
-VERSION = 5
-
-_MAGIC = b"NYTPROF\0"
+_MAGIC = b"NYTPROF\x00"
 _MAJOR = 5
 _MINOR = 0
 
@@ -121,7 +118,6 @@ class Writer:
         self._path = Path(path)
         self._fh: os.PathLike | None = None
         self._header_written = False
-        self._header_bytes = b""
         self._compressed_used = False
         self._ticks_per_sec = 1_000_000_000
         self._start_time = 0
@@ -130,7 +126,6 @@ class Writer:
         self._callgraph = _CallGraph()
         self._table_written = False
         self._file_id_counter = 0
-        self._file_count = 0
         self._start_ns = 0
         self._stmts: dict[int, dict[int, list[int]]] = {}
         self._file_records: list[bytes] = []
@@ -187,7 +182,6 @@ class Writer:
         except OSError:
             size = 0
         flags = 1 if is_main else 0
-        self._file_count += 1
         return struct.pack(
             "<IIIII",
             self._next_file_id(),
@@ -197,39 +191,11 @@ class Writer:
             flags,
         )
 
-    def _fix_header(self) -> None:
-        data = self._path.read_bytes()
-        rest = data[len(self._header_bytes) :]
-        header_magic = _MAGIC + struct.pack("<II", _MAJOR, _MINOR)
-        lines = self._header_bytes[len(header_magic) :].rstrip(b"\n").split(b"\n")
-        lines = [l for l in lines if l and not l.startswith(b"file=")]
-        lines.insert(0, f"file={self._path}".encode("ascii"))
-        if self._compressed_used and b"compressed=1" not in lines:
-            lines.append(b"compressed=1")
-        if b"has_stmt=1" not in lines:
-            lines.append(b"has_stmt=1")
-        if b"has_subs=1" not in lines:
-            lines.append(b"has_subs=1")
-        if self._callgraph and len(self._callgraph) > 0:
-            if b"callgraph=present" not in lines:
-                lines.append(b"callgraph=present")
-            lines.append(f"edgecount={len(self._callgraph)}".encode("ascii"))
-        if self.stats:
-            lines.append(b"has_attrs=1")
-            lines.append(f"attrcount={len(self.stats)}".encode("ascii"))
-        lines.append(b"has_end=1")
-        lines.append(f"filecount={self._file_count}".encode("ascii"))
-        lines.append(f"subcount={self._sub_table.count}".encode("ascii"))
-        lines.append(b"stringtable=present")
-        lines.append(f"stringcount={len(self._table._strings)}".encode("ascii"))
-        new_ascii = b"\n".join(lines) + b"\n\n"
-        new_header = header_magic + new_ascii
-        self._path.write_bytes(new_header + rest)
-        self._header_bytes = new_header
 
     def __enter__(self) -> "Writer":
         self._fh = self._path.open("wb")
         self._start_ns = time.time_ns()
+        self._start_time = time.time()
         self._write_header()
         return self
 
@@ -260,26 +226,23 @@ class Writer:
             self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
         self._fh = None
-        self._fix_header()
-        self._header_written = False
 
-    def _write_header(self) -> None:
-        if self._header_written or self._fh is None:
-            return
-        self._start_time = int(time.time())
-        attrs = [
+    def _build_attrs(self) -> bytes:
+        lines = [
             f"file={self._path}",
             "version=5",
             f"ticks_per_sec={self._ticks_per_sec}",
-            f"start_time={self._start_time}",
+            f"start_time={int(self._start_time)}",
         ]
         if self._compressed_used:
-            attrs.append("compressed=1")
-        ascii_hdr = ("\n".join(attrs) + "\n\n").encode("ascii")
+            lines.append("compressed=1")
+        return ("\n".join(lines) + "\n\n").encode("ascii")
+
+    def _write_header(self) -> None:
+        ascii_hdr = self._build_attrs()
         self._fh.write(_MAGIC)
         self._fh.write(struct.pack("<II", _MAJOR, _MINOR))
         self._fh.write(ascii_hdr)
-        self._header_bytes = _MAGIC + struct.pack("<II", _MAJOR, _MINOR) + ascii_hdr
         self._header_written = True
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
