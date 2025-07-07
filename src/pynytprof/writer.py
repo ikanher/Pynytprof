@@ -95,6 +95,23 @@ class _CallGraph:
         return len(self._edges)
 
 
+class _SubStats:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.incl_ns = 0
+        self.child_ns = 0
+
+    def update(self, time_ns: int, child_time_ns: int) -> None:
+        if self.calls < 0xFFFF_FFFF:
+            self.calls = min(0xFFFF_FFFF, self.calls + 1)
+        self.incl_ns += time_ns
+        self.child_ns += child_time_ns
+
+    @property
+    def excl_ns(self) -> int:
+        return self.incl_ns - self.child_ns
+
+
 class Writer:
     """Minimal NYTProf file writer used for tests."""
 
@@ -114,6 +131,7 @@ class Writer:
         self._stmts: dict[int, dict[int, list[int]]] = {}
         self._file_records: list[bytes] = []
         self._file_map: dict[str, int] = {}
+        self.stats: dict[int, _SubStats] = {}
 
     @property
     def sub_table(self) -> _SubTable:
@@ -122,6 +140,10 @@ class Writer:
     @property
     def callgraph(self) -> _CallGraph:
         return self._callgraph
+
+    @property
+    def stats_map(self) -> dict[int, _SubStats]:
+        return self.stats
 
     def add_file(self, path: str, is_main: bool = False) -> int:
         fid = self._file_map.get(path)
@@ -136,7 +158,7 @@ class Writer:
     def _compress(self, tag: bytes, data: bytes) -> bytes:
         if not data:
             return data
-        if tag in {b"F", b"D", b"C", b"S"}:
+        if tag in {b"F", b"D", b"C", b"S", b"A"}:
             self._compressed_used = True
             return zlib.compress(data, 6)
         if tag == TAG_T and len(data) > 1024:
@@ -187,6 +209,9 @@ class Writer:
             if b"callgraph=present" not in lines:
                 lines.append(b"callgraph=present")
             lines.append(f"edgecount={len(self._callgraph)}".encode("ascii"))
+        if self.stats:
+            lines.append(b"has_attrs=1")
+            lines.append(f"attrcount={len(self.stats)}".encode("ascii"))
         lines.append(b"has_end=1")
         lines.append(f"filecount={self._file_count}".encode("ascii"))
         lines.append(f"subcount={self._sub_table.count}".encode("ascii"))
@@ -220,6 +245,12 @@ class Writer:
                 self._write_chunk(b"S", self._sub_table.serialize())
             if len(self._callgraph):
                 self._write_chunk(b"C", self._callgraph.serialize())
+            if self.stats:
+                payload = b"".join(
+                    struct.pack("<IIQQI", sid, s.calls, s.incl_ns, s.excl_ns, 0)
+                    for sid, s in self.stats.items()
+                )
+                self._write_chunk(b"A", payload)
             end_ns = time.time_ns() - self._start_ns
             self._write_chunk(b"E", struct.pack("<Q", end_ns))
             self._fh.close()
