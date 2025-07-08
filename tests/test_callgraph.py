@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 import shutil
+import struct
+import zlib
 import pytest
 
 
@@ -29,6 +31,13 @@ def test_callgraph(tmp_path, use_c):
         "pynytprof.tracer",
         str(script),
     ], cwd=tmp_path, env=env)
+    data = (tmp_path / "nytprof.out").read_bytes()
+    off = data.index(b"C")
+    clen = int.from_bytes(data[off + 1 : off + 5], "little")
+    payload = data[off + 5 : off + 5 + clen]
+    payload = zlib.decompress(payload)
+    rec = struct.unpack_from("<IIIQQ", payload, 0)
+    assert rec[3] > 0
     try:
         subprocess.check_call(["nytprofhtml", "-f", "nytprof.out"], cwd=tmp_path)
     except Exception:
