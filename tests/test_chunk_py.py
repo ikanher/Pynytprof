@@ -15,7 +15,7 @@ def test_py_writer_chunks(tmp_path):
     data = out.read_bytes()
     end = data.index(b"\n", data.rfind(b"!evals=0"))
     chunks = data[end + 1 :]
-    assert chunks[:64].count(b"F") == 1
+    assert chunks.count(b"F") == 1
     assert chunks[64:256].count(b"S") == 1
     token = chunks[:1]
     length = int.from_bytes(chunks[1:5], "little")
