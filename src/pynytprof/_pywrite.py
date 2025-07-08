@@ -94,13 +94,18 @@ class Writer:
                 import struct
 
                 ns2ticks = lambda ns: ns // 100
-                parts = []
-                for line, calls in self.tracer._line_hits.items():
-                    inc = ns2ticks(self.tracer._line_time_ns[line])
-                    exc = ns2ticks(self.tracer._exc_time_ns.get(line, 0))
-                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, exc))
-                if parts:
-                    payload = b"".join(parts)
+                payload = b"".join(
+                    struct.pack(
+                        "<IIIQQ",
+                        0,
+                        line,
+                        calls,
+                        ns2ticks(self.tracer._line_time_ns[line]),
+                        ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
+                    )
+                    for line, calls in self.tracer._line_hits.items()
+                )
+                if payload:
                     self.writer.write_chunk(b"S", payload)
 
                 if self.tracer._calls:
@@ -134,13 +139,18 @@ class Writer:
                 import struct
 
                 ns2ticks = lambda ns: ns // 100
-                parts = []
-                for line, calls in self.tracer._line_hits.items():
-                    inc = ns2ticks(self.tracer._line_time_ns[line])
-                    exc = ns2ticks(self.tracer._exc_time_ns.get(line, 0))
-                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, exc))
-                if parts:
-                    payload = b"".join(parts)
+                payload = b"".join(
+                    struct.pack(
+                        "<IIIQQ",
+                        0,
+                        line,
+                        calls,
+                        ns2ticks(self.tracer._line_time_ns[line]),
+                        ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
+                    )
+                    for line, calls in self.tracer._line_hits.items()
+                )
+                if payload:
                     self.writer.write_chunk(b"S", payload)
                 if self.tracer._calls:
                     id_map = {

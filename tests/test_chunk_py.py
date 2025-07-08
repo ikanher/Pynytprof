@@ -14,13 +14,14 @@ def test_py_writer_chunks(tmp_path):
     )
     data = out.read_bytes()
     end = data.index(b"\n", data.rfind(b"!evals=0"))
-    first = data[end + 1 :]
-    token = first[:1]
-    length = int.from_bytes(first[1:5], "little")
+    chunks = data[end + 1 :]
+    assert chunks[:64].count(b"F") == 1
+    assert chunks[64:256].count(b"S") == 1
+    token = chunks[:1]
+    length = int.from_bytes(chunks[1:5], "little")
     assert token == b"F"
-    f_pos = data.index(b"F")
-    f_len = int.from_bytes(data[f_pos + 1 : f_pos + 5], "little")
-    fid = int.from_bytes(data[f_pos + 5 : f_pos + 9], "little")
-    flags = int.from_bytes(data[f_pos + 9 : f_pos + 13], "little")
+    f_pos = chunks.index(b"F")
+    fid = int.from_bytes(chunks[f_pos + 5 : f_pos + 9], "little")
+    flags = int.from_bytes(chunks[f_pos + 9 : f_pos + 13], "little")
     assert fid == 0 and flags & 0x10
     assert data.endswith(b"E\x00\x00\x00\x00")
