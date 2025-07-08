@@ -34,3 +34,17 @@ def test_header_banner(tmp_path):
             env=env,
         )
         assert out.read_bytes().startswith(b"NYTProf 5 0\n")
+
+
+def test_writer_modes(tmp_path):
+    """Both explicit modes produce an ASCII banner"""
+    env = {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    out = tmp_path / "out.nyt"
+    for wr in ["py", "c"]:
+        env["PYNYTPROF_WRITER"] = wr
+        subprocess.check_call(
+            [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"],
+            env=env,
+        )
+        data = out.read_bytes()
+        assert data.startswith(b"NYTProf 5 0\n")

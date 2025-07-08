@@ -7,30 +7,37 @@ import importlib.metadata
 
 _version = importlib.metadata.version("pynytprof")
 
-_pref = os.environ.get("PYNYTPROF_WRITER")
+_mode = os.environ.get("PYNYTPROF_WRITER", "auto")
 
-if _pref == "py" or not _pref:
+if _mode == "py":
     from . import _pywrite as _impl
-    write = _impl.write
-    Writer = _impl.Writer
-elif _pref == "c":
+elif _mode == "c":
+    from . import _cwrite as _impl
+    if getattr(_impl, "__build__", None) != _version:
+        warnings.warn(
+            "stale _cwrite extension; falling back to pure-Python writer",
+            RuntimeWarning,
+        )
+        from . import _pywrite as _impl
+else:  # auto
     try:
-        from . import _cwrite as _impl
+        from . import _cwrite as _cimpl
     except Exception:
-        _impl = None
-    if _impl is None or getattr(_impl, "__build__", None) != _version:
-        if _impl is not None:
+        _cimpl = None
+    if _cimpl is not None and getattr(_cimpl, "__build__", None) == _version:
+        _impl = _cimpl
+    else:
+        if _cimpl is not None and getattr(_cimpl, "__build__", None) != _version:
             warnings.warn(
                 "stale _cwrite extension; falling back to pure-Python writer",
                 RuntimeWarning,
             )
         from . import _pywrite as _impl
-    write = _impl.write
-    Writer = getattr(_impl, "Writer", None)
-    if Writer is None:
-        from . import _pywrite as _fallback
-        Writer = _fallback.Writer
-else:
-    raise ImportError(f"unknown writer: {_pref}")
+
+write = _impl.write
+Writer = getattr(_impl, "Writer", None)
+if Writer is None:
+    from . import _pywrite as _fallback
+    Writer = _fallback.Writer
 
 __all__ = ["write", "Writer"]
