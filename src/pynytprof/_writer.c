@@ -266,9 +266,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         p += 8;
     }
 
-    if (nfiles > 0) {
-        write_chunk(fp, 'F', fdata, (uint32_t)f_len);
-    }
+    (void)f_len; /* F chunk handled elsewhere */
     write_chunk(fp, 'D', ddata, (uint32_t)d_len);
     write_chunk(fp, 'C', cdata, (uint32_t)c_len);
     write_chunk(fp, 'S', sdata, (uint32_t)s_len);
