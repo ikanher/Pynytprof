@@ -131,18 +131,6 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     basetime = (long)(start_ns / 1000000000ULL);
     emit_header_ascii(fp);
 
-    char abuf[128];
-    int apos = 0;
-    apos += sprintf(abuf + apos, "ticks_per_sec=%llu",
-                    (unsigned long long)ticks_per_sec);
-    abuf[apos++] = '\0';
-    apos += sprintf(abuf + apos, "start_time=%llu",
-                    (unsigned long long)start_ns);
-    abuf[apos++] = '\0';
-    size_t a_len = (size_t)apos;
-
-    /* A chunk */
-    write_chunk(fp, 'A', abuf, (uint32_t)a_len);
 
     /* F chunk */
     size_t f_len = 0;
