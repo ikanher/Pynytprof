@@ -91,7 +91,24 @@ static void emit_header_ascii(FILE *fp) {
             ":clock_mod=cpu\n"
             ":ticks_per_sec=10000000\n"
             ":osname=%s\n"
-            ":hz=%ld\n",
+            ":hz=%ld\n"
+            "!subs=1\n"
+            "!blocks=0\n"
+            "!leave=1\n"
+            "!expand=0\n"
+            "!trace=0\n"
+            "!use_db_sub=0\n"
+            "!compress=0\n"
+            "!clock=1\n"
+            "!stmts=1\n"
+            "!slowops=2\n"
+            "!findcaller=0\n"
+            "!forkdepth=-1\n"
+            "!perldb=0\n"
+            "!nameevals=1\n"
+            "!nameanonsubs=1\n"
+            "!calls=1\n"
+            "!evals=0\n",
             NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
             PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
 }
