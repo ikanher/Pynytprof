@@ -46,7 +46,8 @@ def _make_ascii_header(start_ns: int) -> bytes:
 
 
 def _chunk(tok: bytes, payload: bytes) -> bytes:
-    return tok + struct.pack("<I", len(payload)) + payload
+    """Return a NYTProf chunk without any extra processing."""
+    return tok[:1] + len(payload).to_bytes(4, "little") + payload
 
 
 class Writer:
@@ -61,11 +62,14 @@ class Writer:
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        self.close()
+        if self._fh:
+            self._fh.write(b"E" + (0).to_bytes(4, "little"))
+            self._fh.close()
+        self._fh = None
 
     def close(self) -> None:
         if self._fh:
-            self._write_chunk(b"E", b"")
+            self._fh.write(b"E" + (0).to_bytes(4, "little"))
             self._fh.close()
         self._fh = None
 
