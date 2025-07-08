@@ -149,8 +149,8 @@ class Writer:
 def write(
     out_path: str,
     files: list[tuple[int, int, int, int, str]],
-    defs: list[tuple[int, int, int, int, str]],
-    calls: list[tuple[int, int, int, int, int]],
+    defs: list,
+    calls: list,
     lines: list[tuple[int, int, int, int, int]],
     start_ns: int,
     ticks_per_sec: int,
@@ -170,15 +170,28 @@ def write(
             for fid, flags, size, mtime, p in files
         )
         f.write(_chunk(b"F", f_payload))
-        d_payload = b"".join(
-            struct.pack("<IIII", sid, fid, sl, el) + name.encode() + b"\0"
-            for sid, fid, sl, el, name in defs
-        )
+        d_payload = b""
+        c_payload = b""
+        if defs:
+            if len(defs[0]) == 3:  # simple sub table
+                d_payload = b"".join(
+                    struct.pack("<II", sid, flags) + name.encode() + b"\0"
+                    for sid, flags, name in defs
+                )
+                c_payload = b"".join(
+                    struct.pack("<IIIQQ", cs, ce, cnt, t, st)
+                    for cs, ce, cnt, t, st in calls
+                )
+            else:
+                d_payload = b"".join(
+                    struct.pack("<IIII", sid, fid, sl, el) + name.encode() + b"\0"
+                    for sid, fid, sl, el, name in defs
+                )
+                c_payload = b"".join(
+                    struct.pack("<IIIQQ", fid, line, sid, inc // 100, exc // 100)
+                    for fid, line, sid, inc, exc in calls
+                )
         f.write(_chunk(b"D", d_payload))
-        c_payload = b"".join(
-            struct.pack("<IIIQQ", fid, line, sid, inc // 100, exc // 100)
-            for fid, line, sid, inc, exc in calls
-        )
         f.write(_chunk(b"C", c_payload))
         s_payload = b"".join(
             struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)

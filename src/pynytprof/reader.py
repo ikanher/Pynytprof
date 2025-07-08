@@ -133,19 +133,36 @@ def read(path: str) -> dict:
                 raise ValueError("bad S length")
         elif tok == "D":
             p = 0
-            while p < length:
-                if p + 16 > length:
-                    raise ValueError("bad D record")
-                sid, fid, sl, el = struct.unpack_from("<IIII", payload, p)
-                p += 16
-                end = payload.find(b"\0", p)
-                if end == -1 or end >= length:
-                    raise ValueError("bad D name")
-                name = payload[p:end].decode()
-                p = end + 1
-                result["defs"].append((sid, fid, sl, el, name))
-            if p != length:
-                raise ValueError("bad D length")
+            try:
+                while p < length:
+                    if p + 16 > length:
+                        raise ValueError
+                    sid, fid, sl, el = struct.unpack_from("<IIII", payload, p)
+                    p += 16
+                    end = payload.find(b"\0", p)
+                    if end == -1 or end >= length:
+                        raise ValueError
+                    name = payload[p:end].decode()
+                    p = end + 1
+                    result["defs"].append((sid, fid, sl, el, name))
+                if p != length:
+                    raise ValueError
+            except Exception:
+                result["defs"].clear()
+                p = 0
+                while p < length:
+                    if p + 8 > length:
+                        raise ValueError("bad D record")
+                    sid, flags = struct.unpack_from("<II", payload, p)
+                    p += 8
+                    end = payload.find(b"\0", p)
+                    if end == -1 or end >= length:
+                        raise ValueError("bad D name")
+                    name = payload[p:end].decode()
+                    p = end + 1
+                    result["defs"].append((sid, flags, 0, 0, name))
+                if p != length:
+                    raise ValueError("bad D length")
         elif tok == "C":
             p = 0
             rec_size = 28
