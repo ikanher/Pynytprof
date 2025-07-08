@@ -40,7 +40,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         f":osname={platform.system().lower()}",
         f":hz={hz}",
     ]
-    hdr = ("\n".join(lines) + "\n").encode()
+    hdr = ("\n".join(lines) + "\n\n").encode()
     assert b"\0" not in hdr
     return hdr
 
@@ -69,12 +69,6 @@ class Writer:
     def __enter__(self):
         self._fh = open(self._path, "wb")
         self._write_ascii_header()
-        keys = [
-            f"ticks_per_sec={self.ticks_per_sec}",
-            f"start_time={self.start_time}",
-        ]
-        payload = b"\0".join(k.encode() for k in keys) + b"\0"
-        self.write_chunk(b"A", payload)
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -93,7 +87,12 @@ class Writer:
                     self.writer.write_chunk(b"S", payload)
 
                 if self.tracer._calls:
-                    id_map = {n: i for i, n in enumerate(sorted({n for pair in self.tracer._calls for n in pair}))}
+                    id_map = {
+                        n: i
+                        for i, n in enumerate(
+                            sorted({n for pair in self.tracer._calls for n in pair})
+                        )
+                    }
                     d_parts = [
                         struct.pack("<II", sid, 0) + name.encode() + b"\0"
                         for name, sid in id_map.items()
@@ -104,9 +103,7 @@ class Writer:
                     for (caller, callee), cnt in self.tracer._calls.items():
                         inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
                         c_parts.append(
-                            struct.pack(
-                                "<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc
-                            )
+                            struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
                         )
                     if c_parts:
                         self.writer.write_chunk(b"C", b"".join(c_parts))
@@ -129,7 +126,12 @@ class Writer:
                     payload = b"".join(parts)
                     self.writer.write_chunk(b"S", payload)
                 if self.tracer._calls:
-                    id_map = {n: i for i, n in enumerate(sorted({n for pair in self.tracer._calls for n in pair}))}
+                    id_map = {
+                        n: i
+                        for i, n in enumerate(
+                            sorted({n for pair in self.tracer._calls for n in pair})
+                        )
+                    }
                     d_parts = [
                         struct.pack("<II", sid, 0) + name.encode() + b"\0"
                         for name, sid in id_map.items()
@@ -140,9 +142,7 @@ class Writer:
                     for (caller, callee), cnt in self.tracer._calls.items():
                         inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
                         c_parts.append(
-                            struct.pack(
-                                "<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc
-                            )
+                            struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
                         )
                     if c_parts:
                         self.writer.write_chunk(b"C", b"".join(c_parts))
@@ -168,7 +168,7 @@ class Writer:
             f":osname={platform.system().lower()}",
             f":hz={hz}",
         ]
-        hdr = ("\n".join(lines) + "\n").encode()
+        hdr = ("\n".join(lines) + "\n\n").encode()
         assert b"\0" not in hdr
         self._fh.write(hdr)
 
@@ -192,12 +192,6 @@ def write(
     path = Path(out_path)
     with path.open("wb") as f:
         f.write(_make_ascii_header(start_ns))
-        keys = [
-            f"ticks_per_sec={ticks_per_sec}",
-            f"start_time={start_ns}",
-        ]
-        a_payload = b"\0".join(k.encode() for k in keys) + b"\0"
-        f.write(_chunk(b"A", a_payload))
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
@@ -216,8 +210,7 @@ def write(
                     for sid, flags, name in defs
                 )
                 c_payload = b"".join(
-                    struct.pack("<IIIQQ", cs, ce, cnt, t, st)
-                    for cs, ce, cnt, t, st in calls
+                    struct.pack("<IIIQQ", cs, ce, cnt, t, st) for cs, ce, cnt, t, st in calls
                 )
             else:
                 d_payload = b"".join(

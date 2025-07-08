@@ -24,3 +24,4 @@ def test_ascii_header(tmp_path, writer):
     assert data.startswith(b"NYTProf 5 0\n")
     hdr_end = data.index(b"\n", data.index(b"\n", data.index(b"\n") + 1) + 1) + 1
     assert b"\0" not in data[:hdr_end]
+    assert b"A" not in data.split(b"\n\n", 1)[1][:32]  # no A in first chunk
