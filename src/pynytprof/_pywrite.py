@@ -69,16 +69,12 @@ class Writer:
     def __enter__(self):
         self._fh = open(self._path, "wb")
         self._write_ascii_header()
-        payload = (
-            f"ticks_per_sec={self.ticks_per_sec}\0" f"start_time={self.start_time}\0"
-        ).encode()
-        pieces = [
-            f"ticks_per_sec={self.ticks_per_sec}".encode(),
-            f"start_time={self.start_time}".encode(),
+        keys = [
+            f"ticks_per_sec={self.ticks_per_sec}",
+            f"start_time={self.start_time}",
         ]
-        assert payload.endswith(b"\0")
-        assert len(payload) == payload.count(b"\0") + sum(len(p) for p in pieces)
-        self._fh.write(_chunk(b"A", payload))
+        payload = b"\0".join(k.encode() for k in keys) + b"\0"
+        self.write_chunk(b"A", payload)
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -196,7 +192,11 @@ def write(
     path = Path(out_path)
     with path.open("wb") as f:
         f.write(_make_ascii_header(start_ns))
-        a_payload = f"ticks_per_sec={ticks_per_sec}\0start_time={start_ns}\0".encode()
+        keys = [
+            f"ticks_per_sec={ticks_per_sec}",
+            f"start_time={start_ns}",
+        ]
+        a_payload = b"\0".join(k.encode() for k in keys) + b"\0"
         f.write(_chunk(b"A", a_payload))
         if not files:
             script = Path(sys.argv[0]).resolve()
