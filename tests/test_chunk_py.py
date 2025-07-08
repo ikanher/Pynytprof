@@ -13,7 +13,8 @@ def test_py_writer_chunks(tmp_path):
         },
     )
     data = out.read_bytes()
-    first = data.split(b"\n\n", 1)[1]
+    end = data.index(b"\n", data.rfind(b"!evals=0"))
+    first = data[end + 1 :]
     token = first[:1]
     length = int.from_bytes(first[1:5], "little")
     assert token == b"F"

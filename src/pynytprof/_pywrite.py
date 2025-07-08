@@ -39,8 +39,25 @@ def _make_ascii_header(start_ns: int) -> bytes:
         ":ticks_per_sec=10000000",
         f":osname={platform.system().lower()}",
         f":hz={hz}",
+        "!subs=1",
+        "!blocks=0",
+        "!leave=1",
+        "!expand=0",
+        "!trace=0",
+        "!use_db_sub=0",
+        "!compress=0",
+        "!clock=1",
+        "!stmts=1",
+        "!slowops=2",
+        "!findcaller=0",
+        "!forkdepth=-1",
+        "!perldb=0",
+        "!nameevals=1",
+        "!nameanonsubs=1",
+        "!calls=1",
+        "!evals=0",
     ]
-    hdr = ("\n".join(lines) + "\n\n").encode()
+    hdr = ("\n".join(lines) + "\n").encode()
     assert b"\0" not in hdr
     return hdr
 
@@ -167,8 +184,25 @@ class Writer:
             ":ticks_per_sec=10000000",
             f":osname={platform.system().lower()}",
             f":hz={hz}",
+            "!subs=1",
+            "!blocks=0",
+            "!leave=1",
+            "!expand=0",
+            "!trace=0",
+            "!use_db_sub=0",
+            "!compress=0",
+            "!clock=1",
+            "!stmts=1",
+            "!slowops=2",
+            "!findcaller=0",
+            "!forkdepth=-1",
+            "!perldb=0",
+            "!nameevals=1",
+            "!nameanonsubs=1",
+            "!calls=1",
+            "!evals=0",
         ]
-        hdr = ("\n".join(lines) + "\n\n").encode()
+        hdr = ("\n".join(lines) + "\n").encode()
         assert b"\0" not in hdr
         self._fh.write(hdr)
 
