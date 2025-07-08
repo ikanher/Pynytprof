@@ -90,7 +90,8 @@ class Writer:
                 parts = []
                 for line, calls in self.tracer._line_hits.items():
                     inc = ns2ticks(self.tracer._line_time_ns[line])
-                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, 0))
+                    exc = ns2ticks(self.tracer._exc_time_ns.get(line, 0))
+                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, exc))
                 if parts:
                     payload = b"".join(parts)
                     self.writer.write_chunk(b"S", payload)
@@ -107,7 +108,8 @@ class Writer:
                 parts = []
                 for line, calls in self.tracer._line_hits.items():
                     inc = ns2ticks(self.tracer._line_time_ns[line])
-                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, 0))
+                    exc = ns2ticks(self.tracer._exc_time_ns.get(line, 0))
+                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, exc))
                 if parts:
                     payload = b"".join(parts)
                     self.writer.write_chunk(b"S", payload)
