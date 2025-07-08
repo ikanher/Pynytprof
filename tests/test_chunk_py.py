@@ -20,7 +20,9 @@ def test_py_writer_chunks(tmp_path):
     assert b"A" in data
     a_pos = data.index(b"A")
     a_len = int.from_bytes(data[a_pos+1:a_pos+5],'little')
-    assert data[a_pos+5 + a_len - 1] == 0
+    chunk = data[a_pos+5 : a_pos+5+a_len]
+    assert chunk.endswith(b"\0")
+    assert chunk.count(b"\0") == 2
     f_pos = data.index(b'F')
     f_len = int.from_bytes(data[f_pos+1:f_pos+5],'little')
     fid   = int.from_bytes(data[f_pos+5:f_pos+9],'little')
