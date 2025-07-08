@@ -60,6 +60,11 @@ class Writer:
         self.ticks_per_sec = ticks_per_sec
         self._start_ns = self.start_time
         self.tracer = tracer
+        self.writer = self
+
+    # expose the same api the C writer will have
+    def write_chunk(self, token: bytes, payload: bytes):
+        self._write_chunk(token, payload)
 
     def __enter__(self):
         self._fh = open(self._path, "wb")
@@ -81,12 +86,14 @@ class Writer:
             if self.tracer is not None:
                 import struct
 
-                payload_parts = [
-                    struct.pack("<IIIQQ", 0, line, calls, 0, 0)
-                    for line, calls in self.tracer._line_hits.items()
-                ]
-                if payload_parts:
-                    self._write_chunk(b"S", b"".join(payload_parts))
+                ns2ticks = lambda ns: ns // 100
+                parts = []
+                for line, calls in self.tracer._line_hits.items():
+                    inc = ns2ticks(self.tracer._line_time_ns[line])
+                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, 0))
+                if parts:
+                    payload = b"".join(parts)
+                    self.writer.write_chunk(b"S", payload)
             self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
@@ -96,12 +103,14 @@ class Writer:
             if self.tracer is not None:
                 import struct
 
-                payload_parts = [
-                    struct.pack("<IIIQQ", 0, line, calls, 0, 0)
-                    for line, calls in self.tracer._line_hits.items()
-                ]
-                if payload_parts:
-                    self._write_chunk(b"S", b"".join(payload_parts))
+                ns2ticks = lambda ns: ns // 100
+                parts = []
+                for line, calls in self.tracer._line_hits.items():
+                    inc = ns2ticks(self.tracer._line_time_ns[line])
+                    parts.append(struct.pack("<IIIQQ", 0, line, calls, inc, 0))
+                if parts:
+                    payload = b"".join(parts)
+                    self.writer.write_chunk(b"S", payload)
             self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None

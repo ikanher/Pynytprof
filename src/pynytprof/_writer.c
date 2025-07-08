@@ -310,6 +310,48 @@ mem_err:
     return PyErr_NoMemory();
 }
 
+typedef struct {
+    PyObject_HEAD
+    FILE *fp;
+} Writer;
+
+static PyObject *
+Writer_write_chunk(Writer *self, PyObject *args)
+{
+    const char *token_bytes;
+    Py_ssize_t tlen;
+    Py_buffer payload;
+    if (!PyArg_ParseTuple(args, "y*y*", &token_bytes, &tlen, &payload))
+        return NULL;
+    if (tlen != 1) {
+        PyErr_SetString(PyExc_ValueError, "token must be one byte");
+        return NULL;
+    }
+    if (!self->fp) {
+        PyErr_SetString(PyExc_ValueError, "writer not open");
+        PyBuffer_Release(&payload);
+        return NULL;
+    }
+    write_chunk(self->fp, token_bytes[0], payload.buf, (uint32_t)payload.len);
+    PyBuffer_Release(&payload);
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef Writer_methods[] = {
+    {"write_chunk", (PyCFunction)Writer_write_chunk, METH_VARARGS,
+     PyDoc_STR("write_chunk(token: bytes, payload: bytes) -> None")},
+    {NULL, NULL, 0, NULL}
+};
+
+static PyTypeObject WriterType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_cwrite.Writer",
+    .tp_basicsize = sizeof(Writer),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_methods = Writer_methods,
+};
+
 static PyMethodDef Methods[] = {{"write", pynytprof_write, METH_VARARGS, "write"},
                                 {NULL, NULL, 0, NULL}};
 
@@ -320,6 +362,10 @@ PyMODINIT_FUNC PyInit__cwrite(void) {
     PyObject *mod = PyModule_Create(&moddef);
     if (!mod)
         return NULL;
+    if (PyType_Ready(&WriterType) < 0)
+        return NULL;
+    Py_INCREF(&WriterType);
+    PyModule_AddObject(mod, "Writer", (PyObject *)&WriterType);
     PyModule_AddStringConstant(mod, "__build__", pynytprof_build_tag);
     return mod;
 }
