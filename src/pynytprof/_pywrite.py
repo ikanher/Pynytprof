@@ -95,6 +95,25 @@ class Writer:
                 if parts:
                     payload = b"".join(parts)
                     self.writer.write_chunk(b"S", payload)
+
+                if self.tracer._calls:
+                    id_map = {n: i for i, n in enumerate(sorted({n for pair in self.tracer._calls for n in pair}))}
+                    d_parts = [
+                        struct.pack("<II", sid, 0) + name.encode() + b"\0"
+                        for name, sid in id_map.items()
+                    ]
+                    if d_parts:
+                        self.writer.write_chunk(b"D", b"".join(d_parts))
+                    c_parts = []
+                    for (caller, callee), cnt in self.tracer._calls.items():
+                        inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
+                        c_parts.append(
+                            struct.pack(
+                                "<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc
+                            )
+                        )
+                    if c_parts:
+                        self.writer.write_chunk(b"C", b"".join(c_parts))
             self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
@@ -113,6 +132,24 @@ class Writer:
                 if parts:
                     payload = b"".join(parts)
                     self.writer.write_chunk(b"S", payload)
+                if self.tracer._calls:
+                    id_map = {n: i for i, n in enumerate(sorted({n for pair in self.tracer._calls for n in pair}))}
+                    d_parts = [
+                        struct.pack("<II", sid, 0) + name.encode() + b"\0"
+                        for name, sid in id_map.items()
+                    ]
+                    if d_parts:
+                        self.writer.write_chunk(b"D", b"".join(d_parts))
+                    c_parts = []
+                    for (caller, callee), cnt in self.tracer._calls.items():
+                        inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
+                        c_parts.append(
+                            struct.pack(
+                                "<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc
+                            )
+                        )
+                    if c_parts:
+                        self.writer.write_chunk(b"C", b"".join(c_parts))
             self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
