@@ -17,4 +17,8 @@ def test_py_writer_chunks(tmp_path):
     token = data[hdr_end:hdr_end+1]
     length = int.from_bytes(data[hdr_end+1:hdr_end+5],'little')
     assert token in b'AF'
+    assert b"A" in data
+    a_pos = data.index(b"A")
+    a_len = int.from_bytes(data[a_pos+1:a_pos+5],'little')
+    assert data[a_pos+5 + a_len - 1] == 0
     assert data.endswith(b'E\x00\x00\x00\x00')

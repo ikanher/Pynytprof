@@ -51,14 +51,27 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 
 
 class Writer:
-    def __init__(self, path: str, start_ns: int | None = None):
+    def __init__(self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000):
         self._path = Path(path)
         self._fh = None
-        self._start_ns = time.time_ns() if start_ns is None else start_ns
+        self.start_time = time.time_ns() if start_ns is None else start_ns
+        self.ticks_per_sec = ticks_per_sec
+        self._start_ns = self.start_time
 
     def __enter__(self):
         self._fh = open(self._path, "wb")
         self._write_ascii_header()
+        payload = (
+            f"ticks_per_sec={self.ticks_per_sec}\0"
+            f"start_time={self.start_time}\0"
+        ).encode()
+        pieces = [
+            f"ticks_per_sec={self.ticks_per_sec}".encode(),
+            f"start_time={self.start_time}".encode(),
+        ]
+        assert payload.endswith(b"\0")
+        assert len(payload) == payload.count(b"\0") + sum(len(p) for p in pieces)
+        self._fh.write(_chunk(b"A", payload))
         return self
 
     def __exit__(self, exc_type, exc, tb):
