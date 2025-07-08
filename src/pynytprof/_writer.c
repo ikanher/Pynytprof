@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 #include <assert.h>
@@ -35,6 +36,24 @@ static void put_u32le(unsigned char *p, uint32_t v) {
 static void put_u64le(unsigned char *p, uint64_t v) {
     put_u32le(p, (uint32_t)v);
     put_u32le(p + 4, (uint32_t)(v >> 32));
+}
+
+static void emit_F_chunk(FILE *fp, const char *path) {
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return; /* ignore on error */
+    uint32_t fid = 0;
+    uint32_t flags = 0x10; /* HAS_SRC */
+    uint32_t size = (uint32_t)st.st_size;
+    uint32_t mtime = (uint32_t)st.st_mtime;
+    fwrite("F", 1, 1, fp);
+    uint32_t plen = 16 + (uint32_t)strlen(path) + 1;
+    fwrite(&plen, 4, 1, fp);
+    fwrite(&fid, 4, 1, fp);
+    fwrite(&flags, 4, 1, fp);
+    fwrite(&size, 4, 1, fp);
+    fwrite(&mtime, 4, 1, fp);
+    fwrite(path, strlen(path) + 1, 1, fp);
 }
 
 static const char *rfc_2822_time(void) {
@@ -127,35 +146,38 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
 
     /* F chunk */
     size_t f_len = 0;
-    for (Py_ssize_t i = 0; i < nfiles; i++) {
-        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
-        const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
-        f_len += 16 + strlen(pstr) + 1;
-    }
     unsigned char *p;
-    char *fdata = malloc(f_len);
-    if (!fdata)
-        goto mem_err;
-    p = (unsigned char *)fdata;
-    for (Py_ssize_t i = 0; i < nfiles; i++) {
-        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
-        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
-        uint32_t flags = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
-        uint32_t size = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
-        uint32_t mt = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 3));
-        const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
-        size_t l = strlen(pstr);
-        put_u32le(p, fid);
-        p += 4;
-        put_u32le(p, flags);
-        p += 4;
-        put_u32le(p, size);
-        p += 4;
-        put_u32le(p, mt);
-        p += 4;
-        memcpy(p, pstr, l);
-        p[l] = 0;
-        p += l + 1;
+    char *fdata = NULL;
+    if (nfiles > 0) {
+        for (Py_ssize_t i = 0; i < nfiles; i++) {
+            PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+            const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+            f_len += 16 + strlen(pstr) + 1;
+        }
+        fdata = malloc(f_len);
+        if (!fdata)
+            goto mem_err;
+        p = (unsigned char *)fdata;
+        for (Py_ssize_t i = 0; i < nfiles; i++) {
+            PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+            uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+            uint32_t flags = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+            uint32_t size = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+            uint32_t mt = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 3));
+            const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+            size_t l = strlen(pstr);
+            put_u32le(p, fid);
+            p += 4;
+            put_u32le(p, flags);
+            p += 4;
+            put_u32le(p, size);
+            p += 4;
+            put_u32le(p, mt);
+            p += 4;
+            memcpy(p, pstr, l);
+            p[l] = 0;
+            p += l + 1;
+        }
     }
 
     /* D chunk */
@@ -167,7 +189,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     }
     char *ddata = malloc(d_len);
     if (!ddata) {
-        free(fdata);
+        if (fdata)
+            free(fdata);
         goto mem_err;
     }
     p = (unsigned char *)ddata;
@@ -196,7 +219,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     size_t c_len = (size_t)ncalls * 28;
     char *cdata = malloc(c_len);
     if (!cdata) {
-        free(fdata);
+        if (fdata)
+            free(fdata);
         free(ddata);
         goto mem_err;
     }
@@ -226,7 +250,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     size_t s_len = (size_t)nlines * 28;
     char *sdata = malloc(s_len);
     if (!sdata) {
-        free(fdata);
+        if (fdata)
+            free(fdata);
         free(ddata);
         free(cdata);
         goto mem_err;
@@ -253,7 +278,16 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         p += 8;
     }
 
-    write_chunk(fp, 'F', fdata, (uint32_t)f_len);
+    if (nfiles > 0) {
+        write_chunk(fp, 'F', fdata, (uint32_t)f_len);
+    } else {
+        PyObject *argv = PySys_GetObject("argv");
+        const char *prog = NULL;
+        if (argv && PyList_Check(argv) && PyList_GET_SIZE(argv) > 0)
+            prog = PyUnicode_AsUTF8(PyList_GET_ITEM(argv, 0));
+        if (prog)
+            emit_F_chunk(fp, prog);
+    }
     write_chunk(fp, 'D', ddata, (uint32_t)d_len);
     write_chunk(fp, 'C', cdata, (uint32_t)c_len);
     write_chunk(fp, 'S', sdata, (uint32_t)s_len);
@@ -263,7 +297,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         fwrite(&zero, 4, 1, fp);
     }
 
-    free(fdata);
+    if (fdata)
+        free(fdata);
     free(ddata);
     free(cdata);
     free(sdata);
