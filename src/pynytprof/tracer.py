@@ -13,34 +13,46 @@ from pathlib import Path
 from fnmatch import fnmatch
 from types import FrameType
 from typing import Any, Dict, List
+import struct
 
 _force_py = bool(os.environ.get("PYNTP_FORCE_PY"))
 _writer_env = os.environ.get("PYNYTPROF_WRITER")
 
 _write = None
+Writer = None
 if _writer_env:
     mod = {"py": "_pywrite", "c": "_cwrite"}.get(_writer_env)
     if mod:
         try:
-            _write = importlib.import_module(f"pynytprof.{mod}").write
+            _mod = importlib.import_module(f"pynytprof.{mod}")
+            _write = getattr(_mod, "write", None)
+            Writer = getattr(_mod, "Writer", None)
         except ModuleNotFoundError:
             _write = None
+            Writer = None
     else:
         raise ImportError(f"unknown writer: {_writer_env}")
 elif _force_py:
     try:
-        _write = importlib.import_module("pynytprof._pywrite").write
+        _mod = importlib.import_module("pynytprof._pywrite")
+        _write = getattr(_mod, "write", None)
+        Writer = getattr(_mod, "Writer", None)
     except ModuleNotFoundError:
         _write = None
+        Writer = None
 else:
-    for _mod in ("_writer", "_cwrite", "_pywrite"):
+    for _mod_name in ("_writer", "_cwrite", "_pywrite"):
         try:
-            _write = importlib.import_module(f"pynytprof.{_mod}").write
+            _mod = importlib.import_module(f"pynytprof.{_mod_name}")
+            _write = getattr(_mod, "write", None)
+            Writer = getattr(_mod, "Writer", None)
             break
         except ModuleNotFoundError:  # pragma: no cover - optional
             continue
+if Writer is None:
+    from ._pywrite import Writer  # type: ignore
 if _write is None:  # pragma: no cover - should ship with at least _pywrite
-    raise ImportError("No nyprof writer available")
+    _write = importlib.import_module("pynytprof._pywrite").write
 
 _ctrace = None
 if not _force_py:
@@ -79,50 +91,89 @@ def _match(path: str) -> bool:
     return any(fnmatch(path, pat) for pat in _filters)
 
 
-def _write_nytprof(out_path: Path) -> None:
-    stat = _script_path.stat()
-    files = [(0, 0x10, stat.st_size, int(stat.st_mtime), str(_script_path))]
-    defs_vec = []
-    calls_vec = []
-    if _write.__module__.endswith("_pywrite") and _calls:
-        id_map = {}
-        for name in sorted({n for pair in _calls for n in pair}):
-            sid = len(id_map)
-            id_map[name] = sid
-            defs_vec.append((sid, 0, name))
-        ns2ticks = lambda ns: ns // 100
-        for (caller, callee), cnt in _calls.items():
-            inc = ns2ticks(_edge_time_ns.get((caller, callee), 0))
-            calls_vec.append((id_map[caller], id_map[callee], cnt, inc, inc))
-    lines_vec = [
-        (
+def _emit_f(writer: Writer) -> None:
+    import os, struct
+
+    st = os.stat(_script_path)
+    payload = (
+        struct.pack(
+            "<IIII",
             0,
-            line,
-            calls,
-            _line_time_ns[line],
-            _exc_time_ns.get(line, 0),
+            0x10,
+            st.st_size,
+            int(st.st_mtime),
         )
-        for line, calls in sorted(_line_hits.items())
-    ]
-    _write(str(out_path), files, defs_vec, calls_vec, lines_vec, _start_ns, TICKS_PER_SEC)
+        + str(_script_path).encode()
+        + b"\0"
+    )
+    writer.write_chunk(b"F", payload)
 
-    import subprocess
-    import shutil
 
-    if shutil.which("xxd"):
-        subprocess.run(["xxd", "-g1", "-l64", out_path], text=True)
+def _write_nytprof(out_path: Path) -> None:
+    with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+        _emit_f(w)
+
+        if _write.__module__.endswith("_pywrite") and _calls:
+            id_map = {}
+            for name in sorted({n for pair in _calls for n in pair}):
+                sid = len(id_map)
+                id_map[name] = sid
+            d_parts = [
+                struct.pack("<II", sid, 0) + name.encode() + b"\0"
+                for name, sid in id_map.items()
+            ]
+            if d_parts:
+                w.write_chunk(b"D", b"".join(d_parts))
+
+            c_parts = []
+            ns2ticks = lambda ns: ns // 100
+            for (caller, callee), cnt in _calls.items():
+                inc = ns2ticks(_edge_time_ns.get((caller, callee), 0))
+                c_parts.append(
+                    struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
+                )
+            if c_parts:
+                w.write_chunk(b"C", b"".join(c_parts))
+
+        s_parts = [
+            struct.pack(
+                "<IIIQQ",
+                0,
+                line,
+                calls,
+                _line_time_ns[line] // 100,
+                _exc_time_ns.get(line, 0) // 100,
+            )
+            for line, calls in sorted(_line_hits.items())
+        ]
+        if s_parts:
+            w.write_chunk(b"S", b"".join(s_parts))
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
-    _write(
-        str(out_path),
-        files,
-        defs,
-        calls,
-        lines,
-        _start_ns,
-        TICKS_PER_SEC,
-    )
+    with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+        _emit_f(w)
+
+        if defs:
+            d_payload = b"".join(
+                struct.pack("<IIII", sid, fid, sl, el) + name.encode() + b"\0"
+                for sid, fid, sl, el, name in defs
+            )
+            w.write_chunk(b"D", d_payload)
+
+        if calls:
+            c_payload = b"".join(
+                struct.pack("<IIIQQ", fid, line, sid, inc // 100, exc // 100)
+                for fid, line, sid, inc, exc in calls
+            )
+            w.write_chunk(b"C", c_payload)
+
+        if lines:
+            s_payload = b"".join(
+                struct.pack("<IIIQQ", fid, line, cnt, inc // 100, exc // 100)
+                for fid, line, cnt, inc, exc in lines
+            )
+            w.write_chunk(b"S", s_payload)
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
@@ -226,7 +277,7 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     global _exc_time_ns, _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
     global _call_stack
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
-    _script_path = Path("-e")
+    _script_path = Path(sys.argv[0]).resolve()
     _start_ns = time.time_ns()
     _results = {}
     _line_hits = collections.Counter()
@@ -254,7 +305,21 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
             )
             for line, calls in sorted(_line_hits.items())
         ]
-        _write(str(out_p), [], [], [], lines_vec, _start_ns, TICKS_PER_SEC)
+        with Writer(str(out_p), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+            _emit_f(w)
+            if lines_vec:
+                payload = b"".join(
+                    struct.pack(
+                        "<IIIQQ",
+                        fid,
+                        line,
+                        calls_v,
+                        inc // 100,
+                        exc // 100,
+                    )
+                    for fid, line, calls_v, inc, exc in lines_vec
+                )
+                w.write_chunk(b"S", payload)
 
 
 def profile(path: str) -> None:

@@ -240,11 +240,6 @@ def write(
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
             files = [(0, 0x10, st.st_size, int(st.st_mtime), str(script))]
-        f_payload = b"".join(
-            struct.pack("<IIII", fid, flags, size, mtime) + p.encode() + b"\0"
-            for fid, flags, size, mtime, p in files
-        )
-        f.write(_chunk(b"F", f_payload))
         d_payload = b""
         c_payload = b""
         if defs:
