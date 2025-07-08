@@ -45,7 +45,7 @@ Mandatory chunks for MVP
 |-------|-------------------------------------------------------------------|--------------------------------------------|
 | `A`   | NUL-joined `key=value` strings                                    | Must repeat `ticks_per_sec` & `start_time` |
 | `F`   | `{u32 fid,u32 flags,u32 size,u32 mtime,zstr path}` × N            | Script = fid 0, set `flags |= 0x10` (HAS_SRC) |
-| `S`   | repeat `{u32 fid,u32 line,u32 calls,u64 inc_ticks,u64 exc_ticks}` | at least one record per executed line |
+| `S`   | repeat `{u32 fid,u32 line,u32 calls,u64 inc_ticks,u64 exc_ticks}` | at least one record per executed line, inc_ticks ≥ 0 (100 ns units) |
 | `C`   | Call-graph edge records (same layout as NYTProf)                  | Optional but improves `nytprofhtml` output |
 | `D`   | Subroutine descriptors                                            | Optional                                   |
 | `E`   | **empty**                                                         | Terminator                                 |
