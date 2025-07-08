@@ -130,6 +130,12 @@ def write(
         f.write(_make_ascii_header(start_ns))
         a_payload = f"ticks_per_sec={ticks_per_sec}\0start_time={start_ns}\0".encode()
         f.write(_chunk(b"A", a_payload))
+        if not files:
+            script = Path(sys.argv[0]).resolve()
+            st = script.stat()
+            files = [
+                (0, 0x10, st.st_size, int(st.st_mtime), str(script))
+            ]
         f_payload = b"".join(
             struct.pack("<IIII", fid, flags, size, mtime) + p.encode() + b"\0"
             for fid, flags, size, mtime, p in files

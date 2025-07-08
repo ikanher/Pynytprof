@@ -21,4 +21,9 @@ def test_py_writer_chunks(tmp_path):
     a_pos = data.index(b"A")
     a_len = int.from_bytes(data[a_pos+1:a_pos+5],'little')
     assert data[a_pos+5 + a_len - 1] == 0
+    f_pos = data.index(b'F')
+    f_len = int.from_bytes(data[f_pos+1:f_pos+5],'little')
+    fid   = int.from_bytes(data[f_pos+5:f_pos+9],'little')
+    flags = int.from_bytes(data[f_pos+9:f_pos+13],'little')
+    assert fid == 0 and flags & 0x10
     assert data.endswith(b'E\x00\x00\x00\x00')
