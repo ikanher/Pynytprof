@@ -101,8 +101,12 @@
 # 6.  Reference dump
 # ──────────────────────────────────────────────────────────────────────
 #
-# `vendor/NYTProf_refs/sample_nytprof.out.xxd` is the golden dump taken
-# on 2025-07-07.  A new profile’s first 64 bytes must match except for
-# time-dependent fields (`basetime`, date-string, etc.).
+# `vendor/NYTProf_refs/sample_nytprof.out.compressed.xxd-dump.txt` is 
+# the golden dump taken on 2025-07-09.  A new profile’s first 64 bytes
+# must match except for time-dependent fields 
+# (`basetime`, date-string, etc.).
+#
+# `vendor/NYTProf_refs/sample_nytprof.out.uncompressed.xxd-dump.txt` is 
+# the same profile, but in uncompressed format.
 #
 # --------------------------------------------------------------------
