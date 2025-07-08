@@ -51,19 +51,21 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 
 
 class Writer:
-    def __init__(self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000):
+    def __init__(
+        self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000, tracer=None
+    ):
         self._path = Path(path)
         self._fh = None
         self.start_time = time.time_ns() if start_ns is None else start_ns
         self.ticks_per_sec = ticks_per_sec
         self._start_ns = self.start_time
+        self.tracer = tracer
 
     def __enter__(self):
         self._fh = open(self._path, "wb")
         self._write_ascii_header()
         payload = (
-            f"ticks_per_sec={self.ticks_per_sec}\0"
-            f"start_time={self.start_time}\0"
+            f"ticks_per_sec={self.ticks_per_sec}\0" f"start_time={self.start_time}\0"
         ).encode()
         pieces = [
             f"ticks_per_sec={self.ticks_per_sec}".encode(),
@@ -76,13 +78,31 @@ class Writer:
 
     def __exit__(self, exc_type, exc, tb):
         if self._fh:
-            self._fh.write(b"E" + (0).to_bytes(4, "little"))
+            if self.tracer is not None:
+                import struct
+
+                payload_parts = [
+                    struct.pack("<IIIQQ", 0, line, calls, 0, 0)
+                    for line, calls in self.tracer._line_hits.items()
+                ]
+                if payload_parts:
+                    self._write_chunk(b"S", b"".join(payload_parts))
+            self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
 
     def close(self) -> None:
         if self._fh:
-            self._fh.write(b"E" + (0).to_bytes(4, "little"))
+            if self.tracer is not None:
+                import struct
+
+                payload_parts = [
+                    struct.pack("<IIIQQ", 0, line, calls, 0, 0)
+                    for line, calls in self.tracer._line_hits.items()
+                ]
+                if payload_parts:
+                    self._write_chunk(b"S", b"".join(payload_parts))
+            self._write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
 
@@ -133,9 +153,7 @@ def write(
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
-            files = [
-                (0, 0x10, st.st_size, int(st.st_mtime), str(script))
-            ]
+            files = [(0, 0x10, st.st_size, int(st.st_mtime), str(script))]
         f_payload = b"".join(
             struct.pack("<IIII", fid, flags, size, mtime) + p.encode() + b"\0"
             for fid, flags, size, mtime, p in files

@@ -8,6 +8,7 @@ import runpy
 import sys
 import time
 import argparse
+import collections
 from pathlib import Path
 from fnmatch import fnmatch
 from types import FrameType
@@ -58,9 +59,9 @@ except Exception:
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
+_line_hits: collections.Counter[int]
 _start_ns: int = 0
 _script_path: Path
-_last_ns: int = 0
 _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
 
 
@@ -73,7 +74,7 @@ def _match(path: str) -> bool:
 def _write_nytprof(out_path: Path) -> None:
     stat = _script_path.stat()
     files = [(0, 0x10, stat.st_size, int(stat.st_mtime), str(_script_path))]
-    lines_vec = [(0, line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())]
+    lines_vec = [(0, line, calls, 0, 0) for line, calls in sorted(_line_hits.items())]
     _write(str(out_path), files, [], [], lines_vec, _start_ns, TICKS_PER_SEC)
 
     import subprocess
@@ -96,25 +97,18 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
-    global _last_ns
     path = str(Path(frame.f_code.co_filename).resolve())
     if path != str(_script_path):
         return _trace
     if not _match(path):
         return _trace
     if event == "line":
-        now = time.perf_counter_ns()
-        dt = 0 if _last_ns == 0 else now - _last_ns
-        rec = _results.setdefault(frame.f_lineno, [0, 0, 0])
-        rec[0] += 1
-        rec[1] += dt
-        rec[2] += dt
-        _last_ns = now
+        _line_hits[frame.f_lineno] += 1
     return _trace
 
 
 def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
-    global _script_path, _start_ns, _results, _last_ns, _filters
+    global _script_path, _start_ns, _results, _filters, _line_hits
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(path).resolve()
     _start_ns = time.time_ns()
@@ -144,7 +138,8 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
             _write_nytprof_vec(Path(out_path), files, d_records, c_records, s_records)
         return
     _results = {}
-    _last_ns = 0
+    global _line_hits
+    _line_hits = collections.Counter()
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
@@ -155,19 +150,19 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
 
 
 def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
-    global _script_path, _start_ns, _results, _last_ns, _filters
+    global _script_path, _start_ns, _results, _filters, _line_hits
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path("-e")
     _start_ns = time.time_ns()
     _results = {}
-    _last_ns = 0
+    _line_hits = collections.Counter()
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
         exec(code, {"__name__": "__main__"})
     finally:
         sys.settrace(None)
-        lines_vec = [(0, line, rec[0], rec[1], rec[2]) for line, rec in sorted(_results.items())]
+        lines_vec = [(0, line, calls, 0, 0) for line, calls in sorted(_line_hits.items())]
         _write(str(out_p), [], [], [], lines_vec, _start_ns, TICKS_PER_SEC)
 
 
