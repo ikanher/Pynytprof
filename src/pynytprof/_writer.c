@@ -17,6 +17,14 @@ static void dbg_chunk(char tok, uint32_t len) {
         fprintf(stderr, "[DBG] write chunk %c len=%u\n", tok, len);
 }
 
+static void write_chunk(FILE *fp, char token,
+                        const void *payload, uint32_t len) {
+    dbg_chunk(token, len);
+    fputc(token, fp);
+    fwrite(&len, 4, 1, fp);
+    fwrite(payload, 1, len, fp);
+}
+
 static void put_u32le(unsigned char *p, uint32_t v) {
     p[0] = (unsigned char)(v & 0xFF);
     p[1] = (unsigned char)((v >> 8) & 0xFF);
@@ -114,12 +122,8 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     abuf[apos++] = '\0';
     size_t a_len = (size_t)apos;
 
-    char *achunk = malloc(5 + a_len);
-    if (!achunk)
-        goto mem_err;
-    achunk[0] = 'A';
-    put_u32le((unsigned char *)achunk + 1, (uint32_t)a_len);
-    memcpy(achunk + 5, abuf, a_len);
+    /* A chunk */
+    write_chunk(fp, 'A', abuf, (uint32_t)a_len);
 
     /* F chunk */
     size_t f_len = 0;
@@ -128,14 +132,11 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         const char *pstr = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
         f_len += 16 + strlen(pstr) + 1;
     }
-    char *fchunk = malloc(5 + f_len);
-    if (!fchunk) {
-        free(achunk);
+    unsigned char *p;
+    char *fdata = malloc(f_len);
+    if (!fdata)
         goto mem_err;
-    }
-    fchunk[0] = 'F';
-    put_u32le((unsigned char *)fchunk + 1, (uint32_t)f_len);
-    unsigned char *p = (unsigned char *)fchunk + 5;
+    p = (unsigned char *)fdata;
     for (Py_ssize_t i = 0; i < nfiles; i++) {
         PyObject *it = PySequence_Fast_GET_ITEM(files, i);
         uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
@@ -164,15 +165,12 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         const char *name = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
         d_len += 16 + strlen(name) + 1;
     }
-    char *dchunk = malloc(5 + d_len);
-    if (!dchunk) {
-        free(achunk);
-        free(fchunk);
+    char *ddata = malloc(d_len);
+    if (!ddata) {
+        free(fdata);
         goto mem_err;
     }
-    dchunk[0] = 'D';
-    put_u32le((unsigned char *)dchunk + 1, (uint32_t)d_len);
-    p = (unsigned char *)dchunk + 5;
+    p = (unsigned char *)ddata;
     for (Py_ssize_t i = 0; i < ndefs; i++) {
         PyObject *it = PySequence_Fast_GET_ITEM(defs, i);
         uint32_t sid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
@@ -196,16 +194,13 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
 
     /* C chunk */
     size_t c_len = (size_t)ncalls * 28;
-    char *cchunk = malloc(5 + c_len);
-    if (!cchunk) {
-        free(achunk);
-        free(fchunk);
-        free(dchunk);
+    char *cdata = malloc(c_len);
+    if (!cdata) {
+        free(fdata);
+        free(ddata);
         goto mem_err;
     }
-    cchunk[0] = 'C';
-    put_u32le((unsigned char *)cchunk + 1, (uint32_t)c_len);
-    p = (unsigned char *)cchunk + 5;
+    p = (unsigned char *)cdata;
     for (Py_ssize_t i = 0; i < ncalls; i++) {
         PyObject *it = PySequence_Fast_GET_ITEM(calls, i);
         uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
@@ -229,17 +224,14 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
 
     /* S chunk */
     size_t s_len = (size_t)nlines * 28;
-    char *schunk = malloc(5 + s_len);
-    if (!schunk) {
-        free(achunk);
-        free(fchunk);
-        free(dchunk);
-        free(cchunk);
+    char *sdata = malloc(s_len);
+    if (!sdata) {
+        free(fdata);
+        free(ddata);
+        free(cdata);
         goto mem_err;
     }
-    schunk[0] = 'S';
-    put_u32le((unsigned char *)schunk + 1, (uint32_t)s_len);
-    p = (unsigned char *)schunk + 5;
+    p = (unsigned char *)sdata;
     for (Py_ssize_t i = 0; i < nlines; i++) {
         PyObject *it = PySequence_Fast_GET_ITEM(lines, i);
         uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
@@ -261,28 +253,20 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         p += 8;
     }
 
-    unsigned char echunk[5];
-    echunk[0] = 'E';
-    put_u32le(echunk + 1, 0);
+    write_chunk(fp, 'F', fdata, (uint32_t)f_len);
+    write_chunk(fp, 'D', ddata, (uint32_t)d_len);
+    write_chunk(fp, 'C', cdata, (uint32_t)c_len);
+    write_chunk(fp, 'S', sdata, (uint32_t)s_len);
+    {
+        uint32_t zero = 0;
+        fputc('E', fp);
+        fwrite(&zero, 4, 1, fp);
+    }
 
-    dbg_chunk('A', (uint32_t)a_len);
-    fwrite(achunk, 5 + a_len, 1, fp);
-    dbg_chunk('F', (uint32_t)f_len);
-    fwrite(fchunk, 5 + f_len, 1, fp);
-    dbg_chunk('D', (uint32_t)d_len);
-    fwrite(dchunk, 5 + d_len, 1, fp);
-    dbg_chunk('C', (uint32_t)c_len);
-    fwrite(cchunk, 5 + c_len, 1, fp);
-    dbg_chunk('S', (uint32_t)s_len);
-    fwrite(schunk, 5 + s_len, 1, fp);
-    dbg_chunk('E', 0);
-    fwrite(echunk, 5, 1, fp);
-
-    free(achunk);
-    free(fchunk);
-    free(dchunk);
-    free(cchunk);
-    free(schunk);
+    free(fdata);
+    free(ddata);
+    free(cdata);
+    free(sdata);
     fclose(fp);
     Py_RETURN_NONE;
 
