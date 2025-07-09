@@ -69,7 +69,11 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 
 class Writer:
     def __init__(
-        self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000, tracer=None
+        self,
+        path: str,
+        start_ns: int | None = None,
+        ticks_per_sec: int = 10_000_000,
+        tracer=None,
     ):
         self._path = Path(path)
         self._fh = None
@@ -78,6 +82,10 @@ class Writer:
         self._start_ns = self.start_time
         self.tracer = tracer
         self.writer = self
+        self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
+
+    def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
+        self._line_hits[(fid, line)] = (calls, inc, exc)
 
     # expose the same api the C writer will have
     def write_chunk(self, token: bytes, payload: bytes):
@@ -91,88 +99,47 @@ class Writer:
     def __exit__(self, exc_type, exc, tb):
         if self._fh:
             if self.tracer is not None:
-                import struct
 
-                ns2ticks = lambda ns: ns // 100
-                payload = b"".join(
-                    struct.pack(
-                        "<IIIQQ",
-                        0,
-                        line,
+                def ns2ticks(ns: int) -> int:
+                    return ns // 100
+
+                for line, calls in self.tracer._line_hits.items():
+                    self._line_hits[(0, line)] = (
                         calls,
                         ns2ticks(self.tracer._line_time_ns[line]),
                         ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                     )
-                    for line, calls in self.tracer._line_hits.items()
-                )
-                if payload:
-                    self.write_chunk(b"S", payload)
 
-                if self.tracer._calls:
-                    id_map = {
-                        n: i
-                        for i, n in enumerate(
-                            sorted({n for pair in self.tracer._calls for n in pair})
-                        )
-                    }
-                    d_parts = [
-                        struct.pack("<II", sid, 0) + name.encode() + b"\0"
-                        for name, sid in id_map.items()
-                    ]
-                    if d_parts:
-                        self.writer.write_chunk(b"D", b"".join(d_parts))
-                    c_parts = []
-                    for (caller, callee), cnt in self.tracer._calls.items():
-                        inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
-                        c_parts.append(
-                            struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
-                        )
-                    if c_parts:
-                        self.writer.write_chunk(b"C", b"".join(c_parts))
-                self.write_chunk(b"E", b"")
+            recs = []
+            for (fid, line), (calls, inc, exc) in self._line_hits.items():
+                recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
+            payload = b"".join(recs)
+            if payload:
+                self.write_chunk(b"S", payload)
+            self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
 
     def close(self) -> None:
         if self._fh:
             if self.tracer is not None:
-                import struct
 
-                ns2ticks = lambda ns: ns // 100
-                payload = b"".join(
-                    struct.pack(
-                        "<IIIQQ",
-                        0,
-                        line,
+                def ns2ticks(ns: int) -> int:
+                    return ns // 100
+
+                for line, calls in self.tracer._line_hits.items():
+                    self._line_hits[(0, line)] = (
                         calls,
                         ns2ticks(self.tracer._line_time_ns[line]),
                         ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                     )
-                    for line, calls in self.tracer._line_hits.items()
-                )
-                if payload:
-                    self.write_chunk(b"S", payload)
-                if self.tracer._calls:
-                    id_map = {
-                        n: i
-                        for i, n in enumerate(
-                            sorted({n for pair in self.tracer._calls for n in pair})
-                        )
-                    }
-                    d_parts = [
-                        struct.pack("<II", sid, 0) + name.encode() + b"\0"
-                        for name, sid in id_map.items()
-                    ]
-                    if d_parts:
-                        self.writer.write_chunk(b"D", b"".join(d_parts))
-                    c_parts = []
-                    for (caller, callee), cnt in self.tracer._calls.items():
-                        inc = ns2ticks(self.tracer._edge_time_ns.get((caller, callee), 0))
-                        c_parts.append(
-                            struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
-                        )
-                    if c_parts:
-                        self.writer.write_chunk(b"C", b"".join(c_parts))
+
+            recs = []
+            for (fid, line), (calls, inc, exc) in self._line_hits.items():
+                recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
+            payload = b"".join(recs)
+            if payload:
+                self.write_chunk(b"S", payload)
             self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
