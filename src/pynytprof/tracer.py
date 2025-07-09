@@ -178,6 +178,10 @@ def _write_nytprof(out_path: Path) -> None:
         if getattr(w, "_fh", None):
             w._fh.close()
             w._fh = None
+        if os.environ.get("PYNYTPROF_DEBUG"):
+            data = Path(out_path).read_bytes()
+            cutoff = data.index(b"\n\n") + 2
+            print(data[cutoff:cutoff + 5])
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
@@ -206,7 +210,10 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
             w.write_chunk(b"C", c_payload)
         # Always terminate with an empty E-chunk
         w.write_chunk(b"E", b"")
-
+    if os.environ.get("PYNYTPROF_DEBUG"):
+        data = Path(out_path).read_bytes()
+        cutoff = data.index(b"\n\n") + 2
+        print(data[cutoff:cutoff + 5])
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     global _last_ts
