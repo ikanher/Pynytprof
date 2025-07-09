@@ -22,7 +22,7 @@ def test_py_writer_chunks(tmp_path):
         tokens.append(tok)
         length = int.from_bytes(chunks[off+1:off+5], "little")
         off += 5 + length
-    assert tokens == [b"F", b"S", b"E"]
+    assert tokens == [b"F", b"S", b"D", b"C", b"E"]
     assert b"A" not in tokens
     f_pos = chunks.index(b"F")
     fid = int.from_bytes(chunks[f_pos + 5 : f_pos + 9], "little")
