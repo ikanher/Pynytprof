@@ -295,6 +295,32 @@ typedef struct {
 } Writer;
 
 static PyObject *
+Writer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    static char *kwlist[] = {"path", "start_ns", "ticks_per_sec", "tracer", NULL};
+    const char *path;
+    unsigned long long start_ns = 0;
+    unsigned long long ticks = 10000000ULL;
+    PyObject *tracer = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|KKO", kwlist, &path,
+                                     &start_ns, &ticks, &tracer))
+        return NULL;
+
+    Writer *self = (Writer *)type->tp_alloc(type, 0);
+    if (!self)
+        return NULL;
+    self->fp = fopen(path, "wb");
+    if (!self->fp) {
+        Py_DECREF(self);
+        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    }
+    (void)ticks; /* unused */
+    basetime = (long)(start_ns / 1000000000ULL);
+    emit_header_ascii(self->fp);
+    return (PyObject *)self;
+}
+
+static PyObject *
 Writer_write_chunk(Writer *self, PyObject *args)
 {
     const char *token_bytes;
@@ -316,9 +342,39 @@ Writer_write_chunk(Writer *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+Writer_close(Writer *self, PyObject *Py_UNUSED(args))
+{
+    if (self->fp) {
+        uint32_t zero = 0;
+        fputc('E', self->fp);
+        fwrite(&zero, 4, 1, self->fp);
+        fclose(self->fp);
+        self->fp = NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Writer_enter(Writer *self, PyObject *Py_UNUSED(args))
+{
+    Py_INCREF(self);
+    return (PyObject *)self;
+}
+
+static PyObject *
+Writer_exit(Writer *self, PyObject *args)
+{
+    Writer_close(self, NULL);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef Writer_methods[] = {
     {"write_chunk", (PyCFunction)Writer_write_chunk, METH_VARARGS,
      PyDoc_STR("write_chunk(token: bytes, payload: bytes) -> None")},
+    {"close", (PyCFunction)Writer_close, METH_NOARGS, PyDoc_STR("close() -> None")},
+    {"__enter__", (PyCFunction)Writer_enter, METH_NOARGS, NULL},
+    {"__exit__", (PyCFunction)Writer_exit, METH_VARARGS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -327,7 +383,7 @@ static PyTypeObject WriterType = {
     .tp_name = "_cwrite.Writer",
     .tp_basicsize = sizeof(Writer),
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
+    .tp_new = Writer_new,
     .tp_methods = Writer_methods,
 };
 
