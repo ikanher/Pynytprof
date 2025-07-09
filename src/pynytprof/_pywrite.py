@@ -106,7 +106,7 @@ class Writer:
                     for line, calls in self.tracer._line_hits.items()
                 )
                 if payload:
-                    self.writer.write_chunk(b"S", payload)
+                    self.write_chunk(b"S", payload)
 
                 if self.tracer._calls:
                     id_map = {
@@ -129,7 +129,7 @@ class Writer:
                         )
                     if c_parts:
                         self.writer.write_chunk(b"C", b"".join(c_parts))
-            self._write_chunk(b"E", b"")
+                self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
 
@@ -151,7 +151,7 @@ class Writer:
                     for line, calls in self.tracer._line_hits.items()
                 )
                 if payload:
-                    self.writer.write_chunk(b"S", payload)
+                    self.write_chunk(b"S", payload)
                 if self.tracer._calls:
                     id_map = {
                         n: i
@@ -173,7 +173,7 @@ class Writer:
                         )
                     if c_parts:
                         self.writer.write_chunk(b"C", b"".join(c_parts))
-            self._write_chunk(b"E", b"")
+            self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
 
