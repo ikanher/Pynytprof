@@ -25,4 +25,4 @@ def test_ascii_header(tmp_path, writer):
     hdr_end = data.index(b"\n", data.index(b"\n", data.index(b"\n") + 1) + 1) + 1
     assert b"\0" not in data[:hdr_end]
     end = data.index(b"\n", data.rfind(b"!evals=0"))
-    assert data[end + 1 : end + 2] == b"F"
+    assert data[end + 1 : end + 2] == b"P"

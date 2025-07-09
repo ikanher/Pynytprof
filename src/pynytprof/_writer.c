@@ -317,6 +317,16 @@ Writer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     (void)ticks; /* unused */
     basetime = (long)(start_ns / 1000000000ULL);
     emit_header_ascii(self->fp);
+    {
+        uint32_t pid = (uint32_t)getpid();
+        uint32_t ppid = (uint32_t)getppid();
+        double start = (double)time(NULL);
+        uint8_t buf[sizeof(pid) + sizeof(ppid) + sizeof(start)];
+        memcpy(buf, &pid, sizeof(pid));
+        memcpy(buf + 4, &ppid, sizeof(ppid));
+        memcpy(buf + 8, &start, sizeof(start));
+        write_chunk(self->fp, 'P', buf, sizeof(buf));
+    }
     return (PyObject *)self;
 }
 

@@ -7,7 +7,7 @@ _MAGIC = b"NYTPROF\0"
 _MAJOR = 5
 _MINOR = 0
 _ASCII_PREFIX = b"NYTProf 5 0\n"
-_CHUNK_START = b"ACDFSET"
+_CHUNK_START = b"PACDFSET"
 
 
 def read(path: str) -> dict:
@@ -102,6 +102,11 @@ def read(path: str) -> dict:
                     raise ValueError("bad attr")
                 k, v = item.split(b"=", 1)
                 result["attrs"][k.decode()] = int(v)
+        elif tok == "P":
+            if length != 16:
+                raise ValueError("bad P length")
+            pid, ppid, start = struct.unpack_from("<IId", payload, 0)
+            result["attrs"].update({"pid": pid, "ppid": ppid, "start_time": start})
         elif tok == "F":
             p = 0
             while p < length:
