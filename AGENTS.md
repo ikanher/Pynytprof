@@ -40,7 +40,7 @@ This document shows **where to look** and **how to contribute**.
 - Responsible for emitting NYTProf chunks.
 - **Python fallback**: `_pywrite.py`
 - **C extension**: `_cwrite.c`
-- Controlled by `PYWRITER` environment variable (`py` or `c`).
+- Controlled by `PYNYTPROF_WRITER` environment variable (`py` or `c`).
 
 ### CLI
 - `cli.py` dispatches commands (`profile`, `verify`, `convert`).
@@ -97,7 +97,7 @@ If in doubt, always compare output to a reference Perl-generated `nytprof.out`.
 ## 7. Typical Questions
 
 **Q: How do I switch between the C and Python writer?**  
-A: Set `PYWRITER=c` or `PYWRITER=py` in your environment.
+A: Set `PYNYTPROF_WRITER=c` or `PYNYTPROF_WRITER=py` in your environment.
 
 **Q: How do I regenerate the reference output?**  
 A: Run `perl -d:NYTProf your_script.pl` and grab `nytprof.out`.
