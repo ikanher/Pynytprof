@@ -11,7 +11,11 @@
 #include <assert.h>
 #include "nytp_version.h"
 
+#ifdef PYNYTPROF_BUILD_TAG
+const char *pynytprof_build_tag = PYNYTPROF_BUILD_TAG;
+#else
 const char *pynytprof_build_tag = __DATE__ " " __TIME__;
+#endif
 
 static void dbg_chunk(char tok, uint32_t len) {
     if (getenv("PYNTP_DEBUG"))

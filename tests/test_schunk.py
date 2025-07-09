@@ -30,7 +30,7 @@ def test_schunk(tmp_path, writer):
         if tok == b"S":
             s_off = off
         off += 5 + length
-    assert tokens == [b"F", b"S", b"E"]
+    assert tokens == [b"F", b"S", b"D", b"C", b"E"]
     assert s_off is not None
     slen = int.from_bytes(chunks[s_off + 1 : s_off + 5], "little")
     assert slen % 28 == 0 and slen > 0

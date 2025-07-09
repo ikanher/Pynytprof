@@ -151,6 +151,8 @@ def _write_nytprof(out_path: Path) -> None:
         if payload:
             w.write_chunk(b"S", payload)
 
+        emitted_d = False
+        emitted_c = False
         if _force_py and _write.__module__.endswith("_pywrite") and _calls:
             id_map = {}
             for name in sorted({n for pair in _calls for n in pair}):
@@ -162,6 +164,7 @@ def _write_nytprof(out_path: Path) -> None:
             ]
             if d_parts:
                 w.write_chunk(b"D", b"".join(d_parts))
+                emitted_d = True
 
             c_parts = []
             ns2ticks = lambda ns: ns // 100
@@ -172,6 +175,12 @@ def _write_nytprof(out_path: Path) -> None:
                 )
             if c_parts:
                 w.write_chunk(b"C", b"".join(c_parts))
+                emitted_c = True
+
+        if not emitted_d:
+            w.write_chunk(b"D", b"")
+        if not emitted_c:
+            w.write_chunk(b"C", b"")
 
         w.write_chunk(b"E", b"")
     finally:
