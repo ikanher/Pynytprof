@@ -91,6 +91,7 @@ _call_stack: list[tuple[str, int]]
 _start_ns: int = 0
 _script_path: Path
 _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
+_emitted_f: bool = False
 
 
 def _match(path: str) -> bool:
@@ -100,20 +101,21 @@ def _match(path: str) -> bool:
 
 
 def _emit_f(writer: Writer) -> None:
+    global _emitted_f
+    if _emitted_f:
+        return
+    _emitted_f = True
     import os, struct
 
     st = os.stat(_script_path)
-    payload = (
-        struct.pack(
-            "<IIII",
-            0,
-            0x10,
-            st.st_size,
-            int(st.st_mtime),
-        )
-        + str(_script_path).encode()
-        + b"\0"
+    fields = struct.pack(
+        "<IIII",
+        0,  # fid
+        0x10,  # flags HAS_SRC
+        st.st_size,
+        int(st.st_mtime),
     )
+    payload = fields + str(_script_path).encode() + b"\0"
     writer.write_chunk(b"F", payload)
 
 
@@ -230,9 +232,10 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
 
 
 def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
-    global _script_path, _start_ns, _results, _filters, _line_hits
+    global _script_path, _start_ns, _results, _filters, _line_hits, _emitted_f
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(path).resolve()
+    _emitted_f = False
     _start_ns = time.time_ns()
     if _ctrace is not None:
         _ctrace.enable(str(_script_path), _start_ns)
@@ -283,9 +286,10 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
 def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     global _script_path, _start_ns, _results, _filters, _line_hits, _line_time_ns
     global _exc_time_ns, _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
-    global _call_stack
+    global _call_stack, _emitted_f
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(sys.argv[0]).resolve()
+    _emitted_f = False
     _start_ns = time.time_ns()
     _results = {}
     _line_hits = collections.Counter()
