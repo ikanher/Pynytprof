@@ -204,6 +204,8 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
                 for fid, line, cnt, inc, exc in lines
             )
             w.write_chunk(b"S", s_payload)
+        # Always terminate with an empty E-chunk
+        w.write_chunk(b"E", b"")
 
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
