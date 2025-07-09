@@ -79,9 +79,7 @@ except Exception:
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
-_line_hits: collections.Counter[int]
-_line_time_ns: collections.Counter[int]
-_exc_time_ns: collections.Counter[int]
+_line_hits: Dict[tuple[int, int], list[int]]
 _calls: collections.Counter[tuple[str, str]]
 _call_time_ns: collections.Counter[str]
 _edge_time_ns: collections.Counter[tuple[str, str]]
@@ -156,19 +154,21 @@ def _write_nytprof(out_path: Path) -> None:
             if c_parts:
                 w.write_chunk(b"C", b"".join(c_parts))
 
-        s_parts = [
-            struct.pack(
-                "<IIIQQ",
-                0,
-                line,
-                calls,
-                _line_time_ns[line] // 100,
-                _exc_time_ns.get(line, 0) // 100,
+        records = []
+        for (fid, line), counts in sorted(_line_hits.items()):
+            calls, inc_ticks, exc_ticks = counts
+            records.append(
+                struct.pack(
+                    "<IIIQQ",
+                    fid,
+                    line,
+                    calls,
+                    inc_ticks,
+                    exc_ticks,
+                )
             )
-            for line, calls in sorted(_line_hits.items())
-        ]
-        if s_parts:
-            w.write_chunk(b"S", b"".join(s_parts))
+        payload = b"".join(records)
+        w.write_chunk(b"S", payload)
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
@@ -219,7 +219,12 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
             lineno, start = _stack.pop()
             delta = now - start
             if lineno is not None:
-                _exc_time_ns[lineno] += delta
+                key = (0, lineno)
+                rec = _line_hits.get(key)
+                if rec is None:
+                    rec = [0, 0, 0]
+                    _line_hits[key] = rec
+                rec[2] += delta // 100
         if _call_stack:
             func, start = _call_stack.pop()
             dur = now - start
@@ -230,13 +235,23 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     elif event == "line":
         delta = now - _last_ts
         lineno = frame.f_lineno
-        _line_hits[lineno] += 1
-        _line_time_ns[lineno] += delta
+        key = (0, lineno)
+        rec = _line_hits.get(key)
+        if rec is None:
+            rec = [0, 0, 0]
+            _line_hits[key] = rec
+        rec[0] += 1
+        rec[1] += delta // 100
         _last_ts = now
         if _stack:
             pline, pstart = _stack[-1]
             if pline is not None:
-                _exc_time_ns[pline] += now - pstart
+                pkey = (0, pline)
+                prec = _line_hits.get(pkey)
+                if prec is None:
+                    prec = [0, 0, 0]
+                    _line_hits[pkey] = prec
+                prec[2] += (now - pstart) // 100
             _stack[-1] = (frame.f_lineno, now)
         else:
             _stack.append((frame.f_lineno, now))
@@ -275,11 +290,9 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
             _write_nytprof_vec(Path(out_path), files, d_records, c_records, s_records)
         return
     _results = {}
-    global _line_hits, _line_time_ns, _exc_time_ns, _calls, _call_time_ns
+    global _line_hits, _calls, _call_time_ns
     global _edge_time_ns, _last_ts, _stack, _call_stack
-    _line_hits = collections.Counter()
-    _line_time_ns = collections.Counter()
-    _exc_time_ns = collections.Counter()
+    _line_hits = {}
     _calls = collections.Counter()
     _call_time_ns = collections.Counter()
     _edge_time_ns = collections.Counter()
@@ -296,17 +309,15 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
 
 
 def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
-    global _script_path, _start_ns, _results, _filters, _line_hits, _line_time_ns
-    global _exc_time_ns, _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
+    global _script_path, _start_ns, _results, _filters, _line_hits
+    global _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
     global _call_stack, _emitted_f
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(sys.argv[0]).resolve()
     _emitted_f = False
     _start_ns = time.time_ns()
     _results = {}
-    _line_hits = collections.Counter()
-    _line_time_ns = collections.Counter()
-    _exc_time_ns = collections.Counter()
+    _line_hits = {}
     _calls = collections.Counter()
     _call_time_ns = collections.Counter()
     _edge_time_ns = collections.Counter()
@@ -319,32 +330,24 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
         exec(code, {"__name__": "__main__"})
     finally:
         sys.settrace(None)
-        lines_vec = [
-            (
-                0,
-                line,
-                calls,
-                _line_time_ns[line],
-                _exc_time_ns.get(line, 0),
+        records = []
+        for (fid, line), counts in sorted(_line_hits.items()):
+            calls, inc_ticks, exc_ticks = counts
+            records.append(
+                struct.pack(
+                    "<IIIQQ",
+                    fid,
+                    line,
+                    calls,
+                    inc_ticks,
+                    exc_ticks,
+                )
             )
-            for line, calls in sorted(_line_hits.items())
-        ]
+        payload = b"".join(records)
         with Writer(str(out_p), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
             _emit_p(w)
             _emit_f(w)
-            if lines_vec:
-                payload = b"".join(
-                    struct.pack(
-                        "<IIIQQ",
-                        fid,
-                        line,
-                        calls_v,
-                        inc // 100,
-                        exc // 100,
-                    )
-                    for fid, line, calls_v, inc, exc in lines_vec
-                )
-                w.write_chunk(b"S", payload)
+            w.write_chunk(b"S", payload)
 
 
 def profile(path: str) -> None:
