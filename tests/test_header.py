@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tests.conftest import get_chunk_start
 
 import pytest
 
@@ -24,5 +25,5 @@ def test_ascii_header(tmp_path, writer):
     assert data.startswith(b"NYTProf 5 0\n")
     hdr_end = data.index(b"\n", data.index(b"\n", data.index(b"\n") + 1) + 1) + 1
     assert b"\0" not in data[:hdr_end]
-    cutoff = data.index(b"\n\n") + 2
+    cutoff = get_chunk_start(data)
     assert data[cutoff:cutoff + 1] == b"F"

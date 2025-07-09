@@ -1,6 +1,7 @@
 def test_c_writer_chunks(tmp_path):
     import subprocess, sys, os
     from pathlib import Path
+    from tests.conftest import get_chunk_start
 
     out = tmp_path / "c.out"
     subprocess.check_call(
@@ -12,7 +13,7 @@ def test_c_writer_chunks(tmp_path):
         },
     )
     data = out.read_bytes()
-    end = data.index(b"\n\n") + 2
+    end = get_chunk_start(data)
     chunks = data[end:]
     tokens = []
     off = 0
