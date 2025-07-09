@@ -270,11 +270,7 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
     write_chunk(fp, 'D', ddata, (uint32_t)d_len);
     write_chunk(fp, 'C', cdata, (uint32_t)c_len);
     write_chunk(fp, 'S', sdata, (uint32_t)s_len);
-    {
-        uint32_t zero = 0;
-        fputc('E', fp);
-        fwrite(&zero, 4, 1, fp);
-    }
+    write_chunk(fp, 'E', NULL, 0);
 
     if (fdata)
         free(fdata);
@@ -346,9 +342,7 @@ static PyObject *
 Writer_close(Writer *self, PyObject *Py_UNUSED(args))
 {
     if (self->fp) {
-        uint32_t zero = 0;
-        fputc('E', self->fp);
-        fwrite(&zero, 4, 1, self->fp);
+        write_chunk(self->fp, 'E', NULL, 0);
         fclose(self->fp);
         self->fp = NULL;
     }
