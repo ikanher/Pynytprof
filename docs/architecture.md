@@ -4,7 +4,7 @@ This document describes how **Pynytprof** works and how its modules fit together
 
 ---
 
-## Component Map
+## Component map
 
 | Module                        | Responsibility                                                |
 |--------------------------------|--------------------------------------------------------------|
@@ -20,7 +20,7 @@ This document describes how **Pynytprof** works and how its modules fit together
 
 ---
 
-## Runtime Flow
+## Runtime flow
 
 1. **Initialization**  
    `profile_script()` or `Tracer()` decides whether to use:
