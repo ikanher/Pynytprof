@@ -1,5 +1,5 @@
 from pathlib import Path, PurePosixPath
-import subprocess, os, sys
+import subprocess, os, sys, struct
 
 
 def test_py_writer_chunks(tmp_path):
@@ -30,6 +30,13 @@ def test_py_writer_chunks(tmp_path):
     fid = int.from_bytes(chunks[f_pos + 5 : f_pos + 9], "little")
     flags = int.from_bytes(chunks[f_pos + 9 : f_pos + 13], "little")
     assert fid == 0 and flags & 0x10
-    flen = int.from_bytes(data[f_pos + 1 : f_pos + 5], "little")
-    assert flen >= 13
+    flen = int.from_bytes(chunks[f_pos + 1 : f_pos + 5], "little")
+    script_path = Path(__file__).resolve().parents[1] / "src" / "pynytprof" / "tracer.py"
+    st = script_path.stat()
+    payload = (
+        struct.pack("<IIII", 0, 0x10, st.st_size, int(st.st_mtime))
+        + str(script_path).encode()
+        + b"\0"
+    )
+    assert flen == len(payload)
     assert data.endswith(b"E\x00\x00\x00\x00")

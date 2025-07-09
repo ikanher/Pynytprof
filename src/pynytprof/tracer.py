@@ -115,7 +115,8 @@ def _emit_f(writer: Writer) -> None:
         st.st_size,
         int(st.st_mtime),
     )
-    payload = fields + str(_script_path).encode() + b"\0"
+    path_b = str(_script_path).encode()
+    payload = fields + path_b + b"\0"
     writer.write_chunk(b"F", payload)
 
 
