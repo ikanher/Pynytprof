@@ -79,17 +79,9 @@ the boundary and contract, not the language.
 **A:** Only if you add, remove, or rename an agent-level entry-point.
 
 **Q:** *What's the header format?*
-**A:** There an xxd dump of a sample output generated from perl at
-       `vendor/NYTProf_refs/sample_nytprof.out.xxd` that you can use for
-       checking the header. Note that you shouldn't look at the FULL file
-       as it is compressed as specified by the format.
+**A:** Look at `docs/FILE_FORMAT.md`
 
-       There's also a tiny version of the XS code at
-       `vendor/NYTProf_refs/NYTProf.xs`. Note that it only contains the
-       headers and the loading routine. Everything else is stripped.
-
-       You should NEVER modify these files.
 
 ---
 
-_Last updated: 2025-07-07_
+_Last updated: 2025-07-09_
