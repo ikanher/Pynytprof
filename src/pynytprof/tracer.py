@@ -133,6 +133,7 @@ def _write_nytprof(out_path: Path) -> None:
     try:
         _emit_p(w)
         _emit_f(w)
+        import struct
 
 
         if _force_py and _write.__module__.endswith("_pywrite") and _calls:
@@ -157,9 +158,9 @@ def _write_nytprof(out_path: Path) -> None:
             if c_parts:
                 w.write_chunk(b"C", b"".join(c_parts))
 
-        records = []
+        recs = []
         for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
-            records.append(
+            recs.append(
                 struct.pack(
                     "<IIIQQ",
                     fid,
@@ -169,8 +170,9 @@ def _write_nytprof(out_path: Path) -> None:
                     exc,
                 )
             )
-        payload = b"".join(records)
-        w.write_chunk(b"S", payload)
+        payload = b"".join(recs)
+        if payload:
+            w.write_chunk(b"S", payload)
 
         w.write_chunk(b"E", b"")
     finally:
@@ -348,7 +350,8 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
-        exec(code, {"__name__": "__main__"})
+        compiled = compile(code, str(_script_path), "exec")
+        exec(compiled, {"__name__": "__main__"})
     finally:
         sys.settrace(None)
         _write_nytprof(out_p)
