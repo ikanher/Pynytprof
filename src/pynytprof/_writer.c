@@ -94,6 +94,7 @@ static void emit_header_ascii(FILE *fp) {
             "!evals=0\n",
             NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
             PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
+    fputc('\n', fp);
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
