@@ -16,4 +16,5 @@ def test_first_token_is_F(tmp_path):
     ], env=env)
     data = out.read_bytes()
     cutoff = data.index(b'\n\n') + 2
-    assert data[cutoff] == 0x46
+    assert data[cutoff] == 0x46  # 'F'
+    assert data[cutoff - 1] == 0x0A  # banner ends with a blank line
