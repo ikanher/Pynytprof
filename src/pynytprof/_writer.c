@@ -323,22 +323,22 @@ Writer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static PyObject *
 Writer_write_chunk(Writer *self, PyObject *args)
 {
-    const char *token_bytes;
-    Py_ssize_t tlen;
-    Py_buffer payload;
-    if (!PyArg_ParseTuple(args, "y*y*", &token_bytes, &tlen, &payload))
+    Py_buffer tokbuf, paybuf;
+    if (!PyArg_ParseTuple(args, "y*y*", &tokbuf, &paybuf))
         return NULL;
-    if (tlen != 1) {
-        PyErr_SetString(PyExc_ValueError, "token must be one byte");
-        return NULL;
-    }
-    if (!self->fp) {
-        PyErr_SetString(PyExc_ValueError, "writer not open");
-        PyBuffer_Release(&payload);
+    if (tokbuf.len != 1) {
+        PyErr_SetString(PyExc_ValueError, "token must be exactly one byte");
+        PyBuffer_Release(&tokbuf);
+        PyBuffer_Release(&paybuf);
         return NULL;
     }
-    write_chunk(self->fp, token_bytes[0], payload.buf, (uint32_t)payload.len);
-    PyBuffer_Release(&payload);
+    /* emit */
+    write_chunk(self->fp,
+                ((const unsigned char *)tokbuf.buf)[0],
+                paybuf.buf,
+                (uint32_t)paybuf.len);
+    PyBuffer_Release(&tokbuf);
+    PyBuffer_Release(&paybuf);
     Py_RETURN_NONE;
 }
 
