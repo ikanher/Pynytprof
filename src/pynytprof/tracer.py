@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import os
 import runpy
+import warnings
 import sys
 import time
 import argparse
@@ -14,6 +15,13 @@ from fnmatch import fnmatch
 from types import FrameType
 from typing import Any, Dict, List
 import struct
+
+warnings.filterwarnings(
+    "ignore",
+    message="'pynytprof.tracer' found in sys.modules",
+    category=RuntimeWarning,
+    module="runpy",
+)
 
 _force_py = bool(os.environ.get("PYNTP_FORCE_PY"))
 _writer_env = os.environ.get("PYNYTPROF_WRITER")
