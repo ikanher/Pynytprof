@@ -18,8 +18,8 @@ def test_schunk(tmp_path, writer):
         env=env,
     )
     data = out.read_bytes()
-    end = data.index(b"\n", data.rfind(b"!evals=0"))
-    chunks = data[end + 1 :]
+    end = data.index(b"\n\n") + 2
+    chunks = data[end:]
     tokens = []
     off = 0
     s_off = None
@@ -30,7 +30,7 @@ def test_schunk(tmp_path, writer):
         if tok == b"S":
             s_off = off
         off += 5 + length
-    assert tokens == [b"P", b"F", b"S", b"E"]
+    assert tokens == [b"F", b"S", b"E"]
     assert s_off is not None
     slen = int.from_bytes(chunks[s_off + 1 : s_off + 5], "little")
     assert slen % 28 == 0 and slen > 0

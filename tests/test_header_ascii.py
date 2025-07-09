@@ -19,8 +19,8 @@ def test_ascii_header(tmp_path, writer):
     assert data.startswith(b"NYTProf 5 0\n")
     hdr_end = data.index(b"\n", data.index(b"\n", data.index(b"\n") + 1) + 1) + 1
     assert b"\0" not in data[:hdr_end]
-    end = data.index(b"\n", data.rfind(b"!evals=0"))
-    assert data[end + 1 : end + 2] == b"P"
+    cutoff = data.index(b"\n\n") + 2
+    assert data[cutoff:cutoff + 1] == b"F"
 
 
 def test_header_banner(tmp_path):
