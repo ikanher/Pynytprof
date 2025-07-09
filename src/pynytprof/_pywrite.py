@@ -110,12 +110,15 @@ class Writer:
                         ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                     )
 
+            import struct
             recs = []
             for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
-            payload = b"".join(recs)
-            if payload:
-                self.write_chunk(b"S", payload)
+                recs.append(
+                    struct.pack("<IIIQQ", fid, line, calls, inc, exc)
+                )
+            s_payload = b"".join(recs)
+            if s_payload:
+                self.write_chunk(b"S", s_payload)
             self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
@@ -134,12 +137,15 @@ class Writer:
                         ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                     )
 
+            import struct
             recs = []
             for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
-            payload = b"".join(recs)
-            if payload:
-                self.write_chunk(b"S", payload)
+                recs.append(
+                    struct.pack("<IIIQQ", fid, line, calls, inc, exc)
+                )
+            s_payload = b"".join(recs)
+            if s_payload:
+                self.write_chunk(b"S", s_payload)
             self.write_chunk(b"E", b"")
             self._fh.close()
         self._fh = None
