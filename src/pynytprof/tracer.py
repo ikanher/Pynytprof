@@ -119,13 +119,18 @@ def _emit_f(writer: Writer) -> None:
     writer.write_chunk(b"F", payload)
 
 
+def _emit_p(writer: Writer) -> None:
+    import os, time, struct
+    pid = os.getpid()
+    ppid = os.getppid()
+    start = time.time()
+    payload = struct.pack('<IId', pid, ppid, start)
+    writer.write_chunk(b"P", payload)
+
+
 def _write_nytprof(out_path: Path) -> None:
     with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
-        pid = os.getpid()
-        ppid = os.getppid()
-        start = time.time()
-        payload = struct.pack('<IId', pid, ppid, start)
-        w.write_chunk(b'P', payload)
+        _emit_p(w)
         _emit_f(w)
 
         if _write.__module__.endswith("_pywrite") and _calls:
@@ -167,11 +172,7 @@ def _write_nytprof(out_path: Path) -> None:
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
     with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
-        pid = os.getpid()
-        ppid = os.getppid()
-        start = time.time()
-        payload = struct.pack('<IId', pid, ppid, start)
-        w.write_chunk(b'P', payload)
+        _emit_p(w)
         _emit_f(w)
 
         if defs:
@@ -328,11 +329,7 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
             for line, calls in sorted(_line_hits.items())
         ]
         with Writer(str(out_p), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
-            pid = os.getpid()
-            ppid = os.getppid()
-            start = time.time()
-            payload = struct.pack('<IId', pid, ppid, start)
-            w.write_chunk(b'P', payload)
+            _emit_p(w)
             _emit_f(w)
             if lines_vec:
                 payload = b"".join(
