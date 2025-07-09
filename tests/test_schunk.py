@@ -18,9 +18,19 @@ def test_schunk(tmp_path, writer):
         env=env,
     )
     data = out.read_bytes()
-    s_pos = data.index(b"S")
-    slen = struct.unpack_from("<I", data, s_pos + 1)[0]
+    end = data.index(b"\n", data.rfind(b"!evals=0"))
+    chunks = data[end + 1 :]
+    tokens = []
+    off = 0
+    s_off = None
+    while off < len(chunks):
+        tok = chunks[off : off + 1]
+        tokens.append(tok)
+        length = int.from_bytes(chunks[off + 1 : off + 5], "little")
+        if tok == b"S":
+            s_off = off
+        off += 5 + length
+    assert tokens.count(b"S") == 1
+    assert s_off is not None
+    slen = int.from_bytes(chunks[s_off + 1 : s_off + 5], "little")
     assert slen % 28 == 0 and slen > 0
-    offset = s_pos + 5
-    rec_inc = int.from_bytes(data[offset + 12 : offset + 20], "little")
-    assert rec_inc > 0
