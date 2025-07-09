@@ -19,10 +19,10 @@ def test_c_writer_chunks(tmp_path):
     while off < len(chunks):
         tok = chunks[off:off+1]
         tokens.append(tok)
-        length = int.from_bytes(chunks[off+1:off+5], "little")
+        length = int.from_bytes(chunks[off+1:off+5], 'little')
         off += 5 + length
-    assert tokens.count(b"P") == 1
-    assert tokens.count(b"F") == 1
+    assert tokens.count(b'P') == 1
+    assert tokens.count(b'F') == 1
     assert b"A" not in tokens
     assert data.endswith(b"E\x00\x00\x00\x00")
     f_pos = chunks.index(b"F")
