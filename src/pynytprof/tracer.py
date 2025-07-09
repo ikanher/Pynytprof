@@ -132,7 +132,8 @@ def _write_nytprof(out_path: Path) -> None:
         _emit_p(w)
         _emit_f(w)
 
-        if _write.__module__.endswith("_pywrite") and _calls:
+
+        if _force_py and _write.__module__.endswith("_pywrite") and _calls:
             id_map = {}
             for name in sorted({n for pair in _calls for n in pair}):
                 sid = len(id_map)
@@ -155,16 +156,15 @@ def _write_nytprof(out_path: Path) -> None:
                 w.write_chunk(b"C", b"".join(c_parts))
 
         records = []
-        for (fid, line), counts in sorted(_line_hits.items()):
-            calls, inc_ticks, exc_ticks = counts
+        for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
             records.append(
                 struct.pack(
                     "<IIIQQ",
                     fid,
                     line,
                     calls,
-                    inc_ticks,
-                    exc_ticks,
+                    inc,
+                    exc,
                 )
             )
         payload = b"".join(records)
@@ -225,6 +225,17 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
                     rec = [0, 0, 0]
                     _line_hits[key] = rec
                 rec[2] += delta // 100
+            if _stack:
+                c_line, c_start = _stack[-1]
+                if c_line is not None:
+                    ckey = (0, c_line)
+                    crec = _line_hits.get(ckey)
+                    if crec is None:
+                        crec = [0, 0, 0]
+                        _line_hits[ckey] = crec
+                    crec[1] += (now - c_start) // 100
+                    _stack[-1] = (c_line, now)
+        _last_ts = now
         if _call_stack:
             func, start = _call_stack.pop()
             dur = now - start
