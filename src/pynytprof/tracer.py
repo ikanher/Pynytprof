@@ -128,7 +128,9 @@ def _emit_p(writer: Writer) -> None:
 
 
 def _write_nytprof(out_path: Path) -> None:
-    with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+    w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
+    w.__enter__()
+    try:
         _emit_p(w)
         _emit_f(w)
 
@@ -169,6 +171,12 @@ def _write_nytprof(out_path: Path) -> None:
             )
         payload = b"".join(records)
         w.write_chunk(b"S", payload)
+
+        w.write_chunk(b"E", b"")
+    finally:
+        if getattr(w, "_fh", None):
+            w._fh.close()
+            w._fh = None
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
@@ -341,24 +349,7 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
         exec(code, {"__name__": "__main__"})
     finally:
         sys.settrace(None)
-        records = []
-        for (fid, line), counts in sorted(_line_hits.items()):
-            calls, inc_ticks, exc_ticks = counts
-            records.append(
-                struct.pack(
-                    "<IIIQQ",
-                    fid,
-                    line,
-                    calls,
-                    inc_ticks,
-                    exc_ticks,
-                )
-            )
-        payload = b"".join(records)
-        with Writer(str(out_p), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
-            _emit_p(w)
-            _emit_f(w)
-            w.write_chunk(b"S", payload)
+        _write_nytprof(out_p)
 
 
 def profile(path: str) -> None:
