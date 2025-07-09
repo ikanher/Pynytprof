@@ -57,7 +57,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         "!calls=1",
         "!evals=0",
     ]
-    hdr = ("\n".join(lines) + "\n").encode()
+    hdr = ("\n".join(lines) + "\n\n").encode()
     assert b"\0" not in hdr
     return hdr
 
@@ -185,13 +185,13 @@ class Writer:
             "!calls=1",
             "!evals=0",
         ]
-        hdr = ("\n".join(lines) + "\n").encode()
+        hdr = ("\n".join(lines) + "\n\n").encode()
         assert b"\0" not in hdr
         self._fh.write(hdr)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
-        self._fh.write(tag)
-        self._fh.write(struct.pack("<I", len(payload)))
+        self._fh.write(tag[:1])
+        self._fh.write(len(payload).to_bytes(4, "little"))
         if payload:
             self._fh.write(payload)
 
@@ -213,6 +213,19 @@ def write(
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
             files = [(0, 0x10, st.st_size, int(st.st_mtime), str(script))]
+
+        f_payload = b"".join(
+            struct.pack("<IIII", fid, flags, size, mtime) + path.encode() + b"\0"
+            for fid, flags, size, mtime, path in files
+        )
+        f.write(_chunk(b"F", f_payload))
+
+        s_payload = b"".join(
+            struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)
+            for fid, line, calls_v, inc, exc in lines
+        )
+        f.write(_chunk(b"S", s_payload))
+
         d_payload = b""
         c_payload = b""
         if defs:
@@ -233,11 +246,9 @@ def write(
                     struct.pack("<IIIQQ", fid, line, sid, inc // 100, exc // 100)
                     for fid, line, sid, inc, exc in calls
                 )
-        f.write(_chunk(b"D", d_payload))
-        f.write(_chunk(b"C", c_payload))
-        s_payload = b"".join(
-            struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)
-            for fid, line, calls_v, inc, exc in lines
-        )
-        f.write(_chunk(b"S", s_payload))
+        if d_payload:
+            f.write(_chunk(b"D", d_payload))
+        if c_payload:
+            f.write(_chunk(b"C", c_payload))
+
         f.write(_chunk(b"E", b""))

@@ -13,8 +13,8 @@ def test_py_writer_chunks(tmp_path):
         },
     )
     data = out.read_bytes()
-    end = data.index(b"\n", data.rfind(b"!evals=0"))
-    chunks = data[end + 1 :]
+    end = data.index(b"\n\n") + 2
+    chunks = data[end:]
     tokens = []
     off = 0
     while off < len(chunks):
@@ -22,7 +22,7 @@ def test_py_writer_chunks(tmp_path):
         tokens.append(tok)
         length = int.from_bytes(chunks[off+1:off+5], "little")
         off += 5 + length
-    assert tokens == [b"P", b"F", b"S", b"E"]
+    assert tokens == [b"F", b"S", b"E"]
     assert b"A" not in tokens
     f_pos = chunks.index(b"F")
     fid = int.from_bytes(chunks[f_pos + 5 : f_pos + 9], "little")

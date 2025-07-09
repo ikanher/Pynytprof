@@ -131,10 +131,25 @@ def _write_nytprof(out_path: Path) -> None:
     w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
     w.__enter__()
     try:
-        _emit_p(w)
         _emit_f(w)
         import struct
 
+
+        recs = []
+        for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
+            recs.append(
+                struct.pack(
+                    "<IIIQQ",
+                    fid,
+                    line,
+                    calls,
+                    inc,
+                    exc,
+                )
+            )
+        payload = b"".join(recs)
+        if payload:
+            w.write_chunk(b"S", payload)
 
         if _force_py and _write.__module__.endswith("_pywrite") and _calls:
             id_map = {}
@@ -158,22 +173,6 @@ def _write_nytprof(out_path: Path) -> None:
             if c_parts:
                 w.write_chunk(b"C", b"".join(c_parts))
 
-        recs = []
-        for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
-            recs.append(
-                struct.pack(
-                    "<IIIQQ",
-                    fid,
-                    line,
-                    calls,
-                    inc,
-                    exc,
-                )
-            )
-        payload = b"".join(recs)
-        if payload:
-            w.write_chunk(b"S", payload)
-
         w.write_chunk(b"E", b"")
     finally:
         if getattr(w, "_fh", None):
@@ -183,8 +182,14 @@ def _write_nytprof(out_path: Path) -> None:
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
     with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
-        _emit_p(w)
         _emit_f(w)
+
+        if lines:
+            s_payload = b"".join(
+                struct.pack("<IIIQQ", fid, line, cnt, inc // 100, exc // 100)
+                for fid, line, cnt, inc, exc in lines
+            )
+            w.write_chunk(b"S", s_payload)
 
         if defs:
             d_payload = b"".join(
@@ -199,13 +204,6 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
                 for fid, line, sid, inc, exc in calls
             )
             w.write_chunk(b"C", c_payload)
-
-        if lines:
-            s_payload = b"".join(
-                struct.pack("<IIIQQ", fid, line, cnt, inc // 100, exc // 100)
-                for fid, line, cnt, inc, exc in lines
-            )
-            w.write_chunk(b"S", s_payload)
         # Always terminate with an empty E-chunk
         w.write_chunk(b"E", b"")
 
