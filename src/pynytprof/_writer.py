@@ -82,8 +82,7 @@ class Writer:
             payload = self._buf.get(tag, b"") if tag != b"E" else b""
             self._fh.write(tag)
             self._fh.write(len(payload).to_bytes(4, "little"))
-            if payload:
-                self._fh.write(payload)
+            self._fh.write(payload)
 
         self._fh.close()
         self._fh = None
