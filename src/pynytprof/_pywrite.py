@@ -144,10 +144,11 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
 
-            summary = ", ".join(
-                f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
-            )
-            print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
+            summary = {
+                tag.decode(): len(self._buf.get(tag, b""))
+                for tag in [b"F", b"S", b"D", b"C", b"E"]
+            }
+            print("FINAL CHUNKS:", summary, file=sys.stderr)
 
         self._fh.write(_make_ascii_header(self._start_ns))
         for tag in [b"F", b"S", b"D", b"C", b"E"]:
