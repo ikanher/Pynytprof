@@ -24,7 +24,7 @@ def read(path: str) -> dict:
         while True:
             if offset >= len(data):
                 raise ValueError("truncated header")
-            if data[offset:offset+1] in _CHUNK_START:
+            if data[offset : offset + 1] in _CHUNK_START:
                 break
             pos = offset
             line_end = data.find(b"\n", offset)
@@ -69,7 +69,7 @@ def read(path: str) -> dict:
                 attrs[key.decode()] = int(val)
             except ValueError:
                 attrs[key.decode()] = val.decode()
-            if offset < len(data) and data[offset:offset+1] in _CHUNK_START:
+            if offset < len(data) and data[offset : offset + 1] in _CHUNK_START:
                 break
     result = {
         "header": (major, minor),
@@ -80,7 +80,7 @@ def read(path: str) -> dict:
         "records": [],
     }
     while offset < len(data):
-        tok = data[offset:offset+1]
+        tok = data[offset : offset + 1]
         if not tok:
             raise ValueError("unexpected EOF")
         tok = tok.decode()
@@ -91,7 +91,7 @@ def read(path: str) -> dict:
         offset += 4
         if offset + length > len(data):
             raise ValueError("truncated payload")
-        payload = data[offset:offset+length]
+        payload = data[offset : offset + length]
         offset += length
 
         if tok == "A":
@@ -138,36 +138,50 @@ def read(path: str) -> dict:
                 raise ValueError("bad S length")
         elif tok == "D":
             p = 0
-            try:
+            if length and payload[0] <= 7:
                 while p < length:
-                    if p + 16 > length:
-                        raise ValueError
-                    sid, fid, sl, el = struct.unpack_from("<IIII", payload, p)
-                    p += 16
-                    end = payload.find(b"\0", p)
-                    if end == -1 or end >= length:
-                        raise ValueError
-                    name = payload[p:end].decode()
-                    p = end + 1
-                    result["defs"].append((sid, fid, sl, el, name))
-                if p != length:
-                    raise ValueError
-            except Exception:
-                result["defs"].clear()
-                p = 0
-                while p < length:
-                    if p + 8 > length:
+                    tok_b = payload[p]
+                    p += 1
+                    if tok_b == 0:
+                        break
+                    if tok_b != 1 or p + 16 > length:
                         raise ValueError("bad D record")
-                    sid, flags = struct.unpack_from("<II", payload, p)
-                    p += 8
-                    end = payload.find(b"\0", p)
-                    if end == -1 or end >= length:
-                        raise ValueError("bad D name")
-                    name = payload[p:end].decode()
-                    p = end + 1
-                    result["defs"].append((sid, flags, 0, 0, name))
+                    fid, line, dur = struct.unpack_from("<IIQ", payload, p)
+                    p += 16
+                    result.setdefault("data", []).append((fid, line, dur))
                 if p != length:
                     raise ValueError("bad D length")
+            else:
+                try:
+                    while p < length:
+                        if p + 16 > length:
+                            raise ValueError
+                        sid, fid, sl, el = struct.unpack_from("<IIII", payload, p)
+                        p += 16
+                        end = payload.find(b"\0", p)
+                        if end == -1 or end >= length:
+                            raise ValueError
+                        name = payload[p:end].decode()
+                        p = end + 1
+                        result["defs"].append((sid, fid, sl, el, name))
+                    if p != length:
+                        raise ValueError
+                except Exception:
+                    result["defs"].clear()
+                    p = 0
+                    while p < length:
+                        if p + 8 > length:
+                            raise ValueError("bad D record")
+                        sid, flags = struct.unpack_from("<II", payload, p)
+                        p += 8
+                        end = payload.find(b"\0", p)
+                        if end == -1 or end >= length:
+                            raise ValueError("bad D name")
+                        name = payload[p:end].decode()
+                        p = end + 1
+                        result["defs"].append((sid, flags, 0, 0, name))
+                    if p != length:
+                        raise ValueError("bad D length")
         elif tok == "C":
             p = 0
             rec_size = 28
