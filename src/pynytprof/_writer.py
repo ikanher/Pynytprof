@@ -40,6 +40,8 @@ class Writer:
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
+        rec = struct.pack("<IIIQQ", fid, line, calls, inc, exc)
+        self._buf[b"S"].extend(rec)
 
     # expose the same API the C writer has
     def write_chunk(self, token: bytes, payload: bytes) -> None:  # noqa: D401 - simple delegate
@@ -63,18 +65,22 @@ class Writer:
         if self.tracer is not None:
             ns2ticks = lambda ns: ns // 100
             for line, calls in self.tracer._line_hits.items():
-                self._line_hits[(0, line)] = (
+                rec = struct.pack(
+                    "<IIIQQ",
+                    0,
+                    line,
                     calls,
                     ns2ticks(self.tracer._line_time_ns[line]),
                     ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                 )
+                self._buf[b"S"].extend(rec)
 
-        recs = []
-        for (fid, line), (calls, inc, exc) in self._line_hits.items():
-            recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
-        s_payload = b"".join(recs)
-        if s_payload:
-            self._buf[b"S"].extend(s_payload)
+        if not self._buf[b"S"]:
+            recs = []
+            for (fid, line), (calls, inc, exc) in self._line_hits.items():
+                recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
+            if recs:
+                self._buf[b"S"].extend(b"".join(recs))
 
         hdr = _make_ascii_header(self._start_ns)
         self._fh.write(hdr)
