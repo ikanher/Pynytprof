@@ -115,63 +115,48 @@ class Writer:
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        if self._fh:
-            if self.tracer is not None:
-
-                def ns2ticks(ns: int) -> int:
-                    return ns // 100
-
-                for line, calls in self.tracer._line_hits.items():
-                    self._line_hits[(0, line)] = (
-                        calls,
-                        ns2ticks(self.tracer._line_time_ns[line]),
-                        ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
-                    )
-
-            import struct
-            recs = []
-            for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                recs.append(
-                    struct.pack("<IIIQQ", fid, line, calls, inc, exc)
-                )
-            s_payload = b"".join(recs)
-            if s_payload:
-                self._buf[b"S"].extend(s_payload)
-            self._dump_chunks()
-            self._fh.close()
-        self._fh = None
+        self.close()
 
     def close(self) -> None:
-        if self._fh:
-            if self.tracer is not None:
+        if not self._fh:
+            return
 
-                def ns2ticks(ns: int) -> int:
-                    return ns // 100
+        if self.tracer is not None:
 
-                for line, calls in self.tracer._line_hits.items():
-                    self._line_hits[(0, line)] = (
-                        calls,
-                        ns2ticks(self.tracer._line_time_ns[line]),
-                        ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
-                    )
+            def ns2ticks(ns: int) -> int:
+                return ns // 100
 
-            import struct
-            recs = []
-            for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                recs.append(
-                    struct.pack("<IIIQQ", fid, line, calls, inc, exc)
+            for line, calls in self.tracer._line_hits.items():
+                self._line_hits[(0, line)] = (
+                    calls,
+                    ns2ticks(self.tracer._line_time_ns[line]),
+                    ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                 )
-            s_payload = b"".join(recs)
-            if s_payload:
-                self._buf[b"S"].extend(s_payload)
-            if os.getenv("PYNYTPROF_DEBUG"):
-                import sys
-                summary = ", ".join(
-                    f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
-                )
-                print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
-            self._dump_chunks()
-            self._fh.close()
+
+        import struct
+
+        recs = []
+        for (fid, line), (calls, inc, exc) in self._line_hits.items():
+            recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
+        s_payload = b"".join(recs)
+        if s_payload:
+            self._buf[b"S"].extend(s_payload)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import sys
+
+            summary = ", ".join(
+                f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
+            )
+            print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
+
+        self._fh.write(_make_ascii_header(self._start_ns))
+        for tag in [b"F", b"S", b"D", b"C", b"E"]:
+            payload = self._buf.get(tag, b"") if tag != b"E" else b""
+            self._fh.write(tag)
+            self._fh.write(len(payload).to_bytes(4, "little"))
+            self._fh.write(payload)
+
+        self._fh.close()
         self._fh = None
 
     def _write_ascii_header(self) -> None:
