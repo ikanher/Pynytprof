@@ -1,7 +1,7 @@
 from pathlib import Path
 import pkgutil
 
-DOC = Path("docs/architecture.md")
+DOC = Path("docs/ARCHITECTURE.md")
 
 
 def test_architecture_doc_headings():
