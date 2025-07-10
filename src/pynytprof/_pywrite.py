@@ -83,17 +83,33 @@ class Writer:
         self.tracer = tracer
         self.writer = self
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
+        self._file_table_payload = bytearray()
+        self._string_table_payload = bytearray()
+        self._data_section_payload = bytearray()
+        self._callgraph_payload = bytearray()
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
 
     # expose the same api the C writer will have
     def write_chunk(self, token: bytes, payload: bytes):
-        self._write_chunk(token, payload)
+        tag = token[:1]
+        if tag == b"F":
+            self._file_table_payload.extend(payload)
+        elif tag == b"S":
+            self._string_table_payload.extend(payload)
+        elif tag == b"D":
+            self._data_section_payload.extend(payload)
+        elif tag == b"C":
+            self._callgraph_payload.extend(payload)
+        elif tag == b"E":
+            pass  # handled on close
+        else:
+            # ignore unknown tags for simplicity
+            pass
 
     def __enter__(self):
         self._fh = open(self._path, "wb")
-        self._write_ascii_header()
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -118,8 +134,8 @@ class Writer:
                 )
             s_payload = b"".join(recs)
             if s_payload:
-                self.write_chunk(b"S", s_payload)
-            self.write_chunk(b"E", b"")
+                self._string_table_payload.extend(s_payload)
+            self._dump_chunks()
             self._fh.close()
         self._fh = None
 
@@ -145,8 +161,8 @@ class Writer:
                 )
             s_payload = b"".join(recs)
             if s_payload:
-                self.write_chunk(b"S", s_payload)
-            self.write_chunk(b"E", b"")
+                self._string_table_payload.extend(s_payload)
+            self._dump_chunks()
             self._fh.close()
         self._fh = None
 
@@ -194,6 +210,17 @@ class Writer:
         self._fh.write(len(payload).to_bytes(4, "little"))
         if payload:
             self._fh.write(payload)
+
+    def _dump_chunks(self) -> None:
+        self._fh.write(_make_ascii_header(self._start_ns))
+        for tag, payload in [
+            (b"F", self._file_table_payload),
+            (b"S", self._string_table_payload),
+            (b"D", self._data_section_payload),
+            (b"C", self._callgraph_payload),
+            (b"E", b""),
+        ]:
+            self._write_chunk(tag, bytes(payload))
 
 
 def write(

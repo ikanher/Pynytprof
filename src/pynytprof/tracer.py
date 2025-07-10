@@ -184,9 +184,8 @@ def _write_nytprof(out_path: Path) -> None:
 
         w.write_chunk(b"E", b"")
     finally:
-        if getattr(w, "_fh", None):
-            w._fh.close()
-            w._fh = None
+        if getattr(w, "close", None):
+            w.close()
         if os.environ.get("PYNYTPROF_DEBUG"):
             data = Path(out_path).read_bytes()
             cutoff = data.index(b"\n\n") + 2
