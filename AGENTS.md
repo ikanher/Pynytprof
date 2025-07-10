@@ -2,6 +2,7 @@
 
 This document helps both **automated coding assistants** and **human contributors** understand how to navigate Pynytprof’s codebase, how pieces relate, and where to find authoritative references.
 
+To speed up things, always run parallel tests by passing `-n auto` to `pytest`.
 ---
 
 ## 1. Purpose
