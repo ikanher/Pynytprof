@@ -83,12 +83,18 @@ class Writer:
         self.tracer = tracer
         self.writer = self
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
+        # guard against accidental duplicate file table emission
+        self._wrote_f = False
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
 
     # expose the same api the C writer will have
     def write_chunk(self, token: bytes, payload: bytes):
+        if token == b"F":
+            if self._wrote_f:
+                return
+            self._wrote_f = True
         self._write_chunk(token, payload)
 
     def __enter__(self):
