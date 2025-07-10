@@ -1,0 +1,35 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def test_dchunk_binary(tmp_path):
+    out = tmp_path / 'nytprof.out'
+    env = {
+        **os.environ,
+        'PYNYTPROF_WRITER': 'py',
+        'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src'),
+    }
+    subprocess.check_call(
+        [
+            sys.executable,
+            '-m',
+            'pynytprof.tracer',
+            '-o',
+            str(out),
+            'tests/example_script.py',
+        ],
+        env=env,
+    )
+    data = out.read_bytes()
+    idx = data.index(b'\n\n') + 2
+    # skip F and S
+    for _ in range(2):
+        length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
+        idx += 5 + length
+    assert data[idx : idx + 1] == b'D'
+    dlen = int.from_bytes(data[idx + 1 : idx + 5], 'little')
+    payload = data[idx + 5 : idx + 5 + dlen]
+    assert b'\n' not in payload, 'newline in D payload'
+    assert all(b <= 7 for b in payload), 'token >7 in D payload'

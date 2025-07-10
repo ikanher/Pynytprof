@@ -34,6 +34,8 @@ _writer_env = os.environ.get("PYNYTPROF_WRITER")
 
 _write = None
 Writer = None
+
+
 def _load_pywrite():
     mod = importlib.import_module("pynytprof._pywrite")
     return mod.write, mod.Writer
@@ -100,7 +102,8 @@ def _emit_f(writer: Writer) -> None:
     if _emitted_f:
         return
     _emitted_f = True
-    import os, struct
+    import os
+    import struct
 
     st = os.stat(_script_path)
     fields = struct.pack(
@@ -116,7 +119,10 @@ def _emit_f(writer: Writer) -> None:
 
 
 def _emit_p(writer: Writer) -> None:
-    import os, time, struct
+    import os
+    import time
+    import struct
+
     pid = os.getpid()
     ppid = os.getppid()
     start = time.time()
@@ -136,7 +142,6 @@ def _write_nytprof(out_path: Path) -> None:
         _emit_f(w)
         import struct
 
-
         recs = []
         for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
             recs.append(
@@ -155,21 +160,15 @@ def _write_nytprof(out_path: Path) -> None:
 
         emitted_d = False
         emitted_c = False
-        if _write.__module__.endswith("_pywrite") and _calls:
+        if _calls:
             id_map = {}
             for name in sorted({n for pair in _calls for n in pair}):
-                sid = len(id_map)
-                id_map[name] = sid
-            d_parts = [
-                struct.pack("<II", sid, 0) + name.encode() + b"\0"
-                for name, sid in id_map.items()
-            ]
-            if d_parts:
-                w.write_chunk(b"D", b"".join(d_parts))
-                emitted_d = True
+                id_map[name] = len(id_map)
+
+            def ns2ticks(ns: int) -> int:
+                return ns // 100
 
             c_parts = []
-            ns2ticks = lambda ns: ns // 100
             for (caller, callee), cnt in _calls.items():
                 inc = ns2ticks(_edge_time_ns.get((caller, callee), 0))
                 c_parts.append(
@@ -218,6 +217,7 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
             )
             w.write_chunk(b"C", c_payload)
 
+
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     global _last_ts
     path = str(Path(frame.f_code.co_filename).resolve())
@@ -228,9 +228,7 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     now = time.perf_counter_ns()
     if event == "call":
         callee = frame.f_code.co_name
-        caller = (
-            frame.f_back.f_code.co_name if frame.f_back else "<toplevel>"
-        )
+        caller = frame.f_back.f_code.co_name if frame.f_back else "<toplevel>"
         _calls[(caller, callee)] += 1
         _stack.append((None, now))
         _call_stack.append((callee, now))

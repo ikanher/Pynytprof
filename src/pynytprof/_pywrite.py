@@ -83,6 +83,7 @@ class Writer:
         self.tracer = tracer
         self.writer = self
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
+        self._stmt_records: list[tuple[int, int, int]] = []
         self._buf: dict[bytes, bytearray] = {
             b"F": bytearray(),
             b"S": bytearray(),
@@ -92,6 +93,13 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
+    def _make_data_section(self) -> bytes:
+        buf = bytearray()
+        for fid, line, dur in self._stmt_records:
+            buf += struct.pack("<BIIQ", 1, fid, line, dur)
+        buf.append(0)
+        return bytes(buf)
+
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
 
@@ -100,6 +108,7 @@ class Writer:
         tag = token[:1]
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
+
             print(
                 f"DEBUG: buffering chunk tag={tag.decode()} len={len(payload)}",
                 file=sys.stderr,
@@ -143,6 +152,10 @@ class Writer:
         s_payload = b"".join(recs)
         if s_payload:
             self._buf[b"S"].extend(s_payload)
+        if self._stmt_records:
+            self._buf[b"D"] = bytearray(self._make_data_section())
+        elif not self._buf[b"D"]:
+            self._buf[b"D"] = bytearray(b"\x00")
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
 
@@ -154,7 +167,6 @@ class Writer:
 
         hdr = _make_ascii_header(self._start_ns)
         self._fh.write(hdr)
-        base_off = self._fh.tell()
         for idx, tag in enumerate([b"F", b"S", b"D", b"C", b"E"], start=1):
             payload = self._buf.get(tag, b"")
             off = self._fh.tell()
@@ -243,7 +255,9 @@ class Writer:
         for tag in [b"F", b"S", b"D", b"C", b"E"]:
             payload = self._buf.get(tag, b"") if tag != b"E" else b""
             if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr)
+                print(
+                    f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr
+                )
             self._write_chunk(tag, bytes(payload))
 
         if os.getenv("PYNYTPROF_DEBUG"):
