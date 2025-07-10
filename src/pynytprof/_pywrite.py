@@ -96,6 +96,12 @@ class Writer:
     # expose the same api the C writer will have
     def write_chunk(self, token: bytes, payload: bytes):
         tag = token[:1]
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import sys
+            print(
+                f"EVENT CHUNK: tag={tag.decode()} len={len(payload)}",
+                file=sys.stderr,
+            )
         if tag in self._buf:
             self._buf[tag].extend(payload)
         elif tag == b"E":
@@ -158,6 +164,12 @@ class Writer:
             s_payload = b"".join(recs)
             if s_payload:
                 self._buf[b"S"].extend(s_payload)
+            if os.getenv("PYNYTPROF_DEBUG"):
+                import sys
+                summary = ", ".join(
+                    f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
+                )
+                print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
             self._dump_chunks()
             self._fh.close()
         self._fh = None

@@ -34,6 +34,10 @@ an error status if the file is corrupted.
 pynytprof verify nytprof.out
 ```
 
+## Debugging
+Set `PYNYTPROF_DEBUG=1` to print the chosen writer class and a summary of each
+chunk written. Debug information is emitted to stderr.
+
 ## Flamegraph output
 Use the `speedscope` command to generate JSON for the Speedscope viewer.
 
