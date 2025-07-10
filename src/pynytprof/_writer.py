@@ -38,16 +38,20 @@ class Writer:
             b"C": bytearray(),
         }
 
+    def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
+        if payload:
+            self._buf[tag].extend(payload)
+
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
         rec = struct.pack("<IIIQQ", fid, line, calls, inc, exc)
-        self._buf[b"S"].extend(rec)
+        self._buffer_chunk(b"S", rec)
 
     # expose the same API the C writer has
     def write_chunk(self, token: bytes, payload: bytes) -> None:  # noqa: D401 - simple delegate
         tag = token[:1]
         if tag in self._buf:
-            self._buf[tag].extend(payload)
+            self._buffer_chunk(tag, payload)
         elif tag == b"E":
             pass  # handled on close
 
@@ -73,14 +77,14 @@ class Writer:
                     ns2ticks(self.tracer._line_time_ns[line]),
                     ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                 )
-                self._buf[b"S"].extend(rec)
+                self._buffer_chunk(b"S", rec)
 
         if not self._buf[b"S"]:
             recs = []
             for (fid, line), (calls, inc, exc) in self._line_hits.items():
                 recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
             if recs:
-                self._buf[b"S"].extend(b"".join(recs))
+                self._buffer_chunk(b"S", b"".join(recs))
 
         hdr = _make_ascii_header(self._start_ns)
         self._fh.write(hdr)
