@@ -153,7 +153,7 @@ def _write_nytprof(out_path: Path) -> None:
 
         emitted_d = False
         emitted_c = False
-        if _force_py and _write.__module__.endswith("_pywrite") and _calls:
+        if _write.__module__.endswith("_pywrite") and _calls:
             id_map = {}
             for name in sorted({n for pair in _calls for n in pair}):
                 sid = len(id_map)
