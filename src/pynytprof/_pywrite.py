@@ -11,6 +11,7 @@ import datetime
 from email.utils import format_datetime
 from importlib import resources
 import re
+import hashlib
 
 try:  # Python 3.9+
     _version_text = resources.files(__package__).joinpath("nytp_version.h").read_text()
@@ -90,8 +91,39 @@ class Writer:
             b"D": bytearray(),
             b"C": bytearray(),
         }
+        self._chunk_order = [b"F", b"S", b"D", b"C", b"E"]
+        self._header_len = len(_make_ascii_header(self._start_ns))
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
+
+    def _calc_start_offset(self, tag: bytes) -> int:
+        offset = self._header_len
+        for t in self._chunk_order:
+            if t == tag:
+                break
+            offset += 5 + len(self._buf.get(t, b""))
+        return offset
+
+    def _debug_chunk_info(self, tag: bytes, payload: bytes, offset: int) -> None:
+        if not os.getenv("PYNYTPROF_DEBUG"):
+            return
+        declared_len = len(payload)
+        actual_len = len(payload)
+        sha256 = hashlib.sha256(payload).hexdigest()
+        first16 = payload[:16].hex()
+        last16 = payload[-16:].hex()
+        lines = [
+            f"DEBUG: buffering chunk tag={tag.decode()} offset=0x{offset:x}",
+            f"       declared_len={declared_len} actual_len={actual_len}",
+            f"       sha256={sha256}",
+            f"       first16={first16} last16={last16}",
+        ]
+        print("\n".join(lines), file=sys.stderr)
+
+    def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
+        offset = self._calc_start_offset(tag)
+        self._buf.setdefault(tag, bytearray()).extend(payload)
+        self._debug_chunk_info(tag, payload, offset)
 
     def _make_data_section(self) -> bytes:
         buf = bytearray()
@@ -106,15 +138,8 @@ class Writer:
     # expose the same api the C writer will have
     def write_chunk(self, token: bytes, payload: bytes):
         tag = token[:1]
-        if os.getenv("PYNYTPROF_DEBUG"):
-            import sys
-
-            print(
-                f"DEBUG: buffering chunk tag={tag.decode()} len={len(payload)}",
-                file=sys.stderr,
-            )
         if tag in self._buf:
-            self._buf[tag].extend(payload)
+            self._buffer_chunk(tag, payload)
         elif tag == b"E":
             pass  # handled on close
         else:
@@ -151,11 +176,19 @@ class Writer:
             recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
         s_payload = b"".join(recs)
         if s_payload:
-            self._buf[b"S"].extend(s_payload)
+            self._buffer_chunk(b"S", s_payload)
         if self._stmt_records:
-            self._buf[b"D"] = bytearray(self._make_data_section())
+            payload = self._make_data_section()
+            if os.getenv("PYNYTPROF_DEBUG"):
+                off = self._calc_start_offset(b"D")
+                self._debug_chunk_info(b"D", payload, off)
+            self._buf[b"D"] = bytearray(payload)
         elif not self._buf[b"D"]:
-            self._buf[b"D"] = bytearray(b"\x00")
+            payload = b"\x00"
+            if os.getenv("PYNYTPROF_DEBUG"):
+                off = self._calc_start_offset(b"D")
+                self._debug_chunk_info(b"D", payload, off)
+            self._buf[b"D"] = bytearray(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
 
@@ -167,6 +200,7 @@ class Writer:
 
         hdr = _make_ascii_header(self._start_ns)
         self._fh.write(hdr)
+        chunk_lengths = []
         for idx, tag in enumerate([b"F", b"S", b"D", b"C", b"E"], start=1):
             payload = self._buf.get(tag, b"")
             payload = payload.replace(b"\n", b"\x01")
@@ -174,6 +208,7 @@ class Writer:
             while b"\n" in length.to_bytes(4, "little"):
                 payload += b"\x00"
                 length = len(payload)
+            chunk_lengths.append(length)
             off = self._fh.tell()
             self._fh.write(tag)
             self._fh.write(length.to_bytes(4, "little"))
@@ -190,7 +225,16 @@ class Writer:
                     file=sys.stderr,
                 )
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: EOF at offset=0x{self._fh.tell():x}", file=sys.stderr)
+            eof = self._fh.tell()
+            expected = len(hdr) + sum(5 + l for l in chunk_lengths)
+            total_chunks = sum(chunk_lengths)
+            print(f"DEBUG: EOF at offset=0x{eof:x}", file=sys.stderr)
+            print(
+                f"DEBUG: expected_size={expected} sum_chunk_lengths={total_chunks}",
+                file=sys.stderr,
+            )
+            if eof != expected:
+                print("WARNING: file size mismatch", file=sys.stderr)
 
         self._fh.close()
         self._fh = None
