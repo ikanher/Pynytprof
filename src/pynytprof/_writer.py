@@ -39,8 +39,7 @@ class Writer:
         }
 
     def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
-        if payload:
-            self._buf[tag].extend(payload)
+        self._buf[tag].extend(payload)
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
