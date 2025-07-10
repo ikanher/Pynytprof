@@ -133,6 +133,8 @@ class Writer:
         self._file_records: list[bytes] = []
         self._file_map: dict[str, int] = {}
         self.stats: dict[int, _SubStats] = {}
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
     @property
     def sub_table(self) -> _SubTable:
@@ -206,26 +208,52 @@ class Writer:
     def close(self) -> None:
         if self._fh:
             if not self._table_written:
-                self._write_chunk(TAG_T, self._table.serialize())
+                payload = self._table.serialize()
+                if os.getenv("PYNYTPROF_DEBUG"):
+                    import sys
+                    print(f"DEBUG: emitting chunk tag={TAG_T.decode()} len={len(payload)}", file=sys.stderr)
+                self._write_chunk(TAG_T, payload)
                 self._table_written = True
             if self._file_records:
-                self._write_chunk(b"F", b"".join(self._file_records))
+                payload = b"".join(self._file_records)
+                if os.getenv("PYNYTPROF_DEBUG"):
+                    import sys
+                    print(f"DEBUG: emitting chunk tag=F len={len(payload)}", file=sys.stderr)
+                self._write_chunk(b"F", payload)
                 self._file_records.clear()
             for fid in list(self._stmts):
                 self._flush_statement_file(fid)
             if self._sub_table.count:
-                self._write_chunk(b"S", self._sub_table.serialize())
+                payload = self._sub_table.serialize()
+                if os.getenv("PYNYTPROF_DEBUG"):
+                    import sys
+                    print(f"DEBUG: emitting chunk tag=S len={len(payload)}", file=sys.stderr)
+                self._write_chunk(b"S", payload)
             if len(self._callgraph):
-                self._write_chunk(b"C", self._callgraph.serialize())
+                payload = self._callgraph.serialize()
+                if os.getenv("PYNYTPROF_DEBUG"):
+                    import sys
+                    print(f"DEBUG: emitting chunk tag=C len={len(payload)}", file=sys.stderr)
+                self._write_chunk(b"C", payload)
             if self.stats:
                 payload = b"".join(
                     struct.pack("<IIQQI", sid, s.calls, s.incl_ns, s.excl_ns, 0)
                     for sid, s in self.stats.items()
                 )
+                if os.getenv("PYNYTPROF_DEBUG"):
+                    import sys
+                    print(f"DEBUG: emitting chunk tag=A len={len(payload)}", file=sys.stderr)
                 self._write_chunk(b"A", payload)
             end_ns = time.time_ns() - self._start_ns
-            self._write_chunk(b"E", struct.pack("<Q", end_ns))
+            payload = struct.pack("<Q", end_ns)
+            if os.getenv("PYNYTPROF_DEBUG"):
+                import sys
+                print(f"DEBUG: emitting chunk tag=E len={len(payload)}", file=sys.stderr)
+            self._write_chunk(b"E", payload)
             self._fh.close()
+            if os.getenv("PYNYTPROF_DEBUG"):
+                import sys
+                print("DEBUG: all chunks emitted", file=sys.stderr)
         self._fh = None
 
     def _build_attrs(self) -> bytes:
@@ -259,17 +287,29 @@ class Writer:
         ]
         banner = "\n".join(lines) + "\n"
         assert "\0" not in banner
-        self._fh.write(banner.encode())
+        data = banner.encode()
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
         self._header_written = True
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
         payload = self._compress(tag, payload)
-        self._fh.write(tag)
-        self._fh.write(struct.pack("<I", len(payload)))
+        data = tag
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
+        data = struct.pack("<I", len(payload))
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
         if payload:
-            self._fh.write(payload)
+            data = payload
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+            self._fh.write(data)
 
     def _ensure_table(self) -> None:
         if not self._table_written:

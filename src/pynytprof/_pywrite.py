@@ -89,6 +89,8 @@ class Writer:
             b"D": bytearray(),
             b"C": bytearray(),
         }
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
@@ -99,7 +101,7 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
             print(
-                f"EVENT CHUNK: tag={tag.decode()} len={len(payload)}",
+                f"DEBUG: buffering chunk tag={tag.decode()} len={len(payload)}",
                 file=sys.stderr,
             )
         if tag in self._buf:
@@ -150,12 +152,26 @@ class Writer:
             }
             print("FINAL CHUNKS:", summary, file=sys.stderr)
 
-        self._fh.write(_make_ascii_header(self._start_ns))
+        data = _make_ascii_header(self._start_ns)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
         for tag in [b"F", b"S", b"D", b"C", b"E"]:
             payload = self._buf.get(tag, b"") if tag != b"E" else b""
-            self._fh.write(tag)
-            self._fh.write(len(payload).to_bytes(4, "little"))
-            self._fh.write(payload)
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr)
+            data = tag
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+            self._fh.write(data)
+            data = len(payload).to_bytes(4, "little")
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+            self._fh.write(data)
+            data = payload
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+            self._fh.write(data)
 
         self._fh.close()
         self._fh = None
@@ -197,19 +213,39 @@ class Writer:
         ]
         hdr = ("\n".join(lines) + "\n\n").encode()
         assert b"\0" not in hdr
-        self._fh.write(hdr)
+        data = hdr
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
-        self._fh.write(tag[:1])
-        self._fh.write(len(payload).to_bytes(4, "little"))
+        data = tag[:1]
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
+        data = len(payload).to_bytes(4, "little")
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
         if payload:
-            self._fh.write(payload)
+            data = payload
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+            self._fh.write(data)
 
     def _dump_chunks(self) -> None:
-        self._fh.write(_make_ascii_header(self._start_ns))
+        data = _make_ascii_header(self._start_ns)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+        self._fh.write(data)
         for tag in [b"F", b"S", b"D", b"C", b"E"]:
             payload = self._buf.get(tag, b"") if tag != b"E" else b""
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr)
             self._write_chunk(tag, bytes(payload))
+
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print("DEBUG: all chunks emitted", file=sys.stderr)
 
 
 def write(
