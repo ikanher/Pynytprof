@@ -152,26 +152,28 @@ class Writer:
             }
             print("FINAL CHUNKS:", summary, file=sys.stderr)
 
-        data = _make_ascii_header(self._start_ns)
+        hdr = _make_ascii_header(self._start_ns)
+        self._fh.write(hdr)
+        base_off = self._fh.tell()
+        for idx, tag in enumerate([b"F", b"S", b"D", b"C", b"E"], start=1):
+            payload = self._buf.get(tag, b"")
+            off = self._fh.tell()
+            self._fh.write(tag)
+            self._fh.write(len(payload).to_bytes(4, "little"))
+            self._fh.write(payload)
+            if os.getenv("PYNYTPROF_DEBUG"):
+                # Read back the first payload byte
+                self._fh.flush()
+                with open(self._fh.name, "rb") as f:
+                    f.seek(off + 5)
+                    first = f.read(1)
+                print(
+                    f"DEBUG: chunk {idx} tag={tag.decode()}   offset=0x{off:x}   "
+                    f"declared_len={len(payload)}   first_byte={first!r}",
+                    file=sys.stderr,
+                )
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-        self._fh.write(data)
-        for tag in [b"F", b"S", b"D", b"C", b"E"]:
-            payload = self._buf.get(tag, b"") if tag != b"E" else b""
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr)
-            data = tag
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
-            data = len(payload).to_bytes(4, "little")
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
-            data = payload
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
+            print(f"DEBUG: EOF at offset=0x{self._fh.tell():x}", file=sys.stderr)
 
         self._fh.close()
         self._fh = None
