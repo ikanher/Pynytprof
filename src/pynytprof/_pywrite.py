@@ -139,6 +139,10 @@ class Writer:
     def write_chunk(self, token: bytes, payload: bytes):
         tag = token[:1]
         if tag in self._buf:
+            if tag == b"D" and not payload:
+                # tracer may emit an empty D just to signal its presence.
+                # Ignore it to avoid buffering the chunk twice.
+                return
             self._buffer_chunk(tag, payload)
         elif tag == b"E":
             pass  # handled on close
