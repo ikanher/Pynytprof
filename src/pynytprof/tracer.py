@@ -89,6 +89,7 @@ _start_ns: int = 0
 _script_path: Path
 _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
 _emitted_f: bool = False
+_stmt_records: list[tuple[int, int, int]]
 
 
 def _match(path: str) -> bool:
@@ -140,6 +141,7 @@ def _write_nytprof(out_path: Path) -> None:
     w.__enter__()
     try:
         _emit_f(w)
+        w._stmt_records.extend(_stmt_records)
         import struct
 
         recs = []
@@ -271,6 +273,7 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
             _line_hits[key] = rec
         rec[0] += 1
         rec[1] += delta // 100
+        _stmt_records.append((0, lineno, delta))
         _last_ts = now
         if _stack:
             pline, pstart = _stack[-1]
@@ -289,6 +292,7 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
 
 def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
     global _script_path, _start_ns, _results, _filters, _line_hits, _emitted_f
+    global _stmt_records
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(path).resolve()
     _emitted_f = False
@@ -328,6 +332,7 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
     _last_ts = time.perf_counter_ns()
     _stack = []
     _call_stack = []
+    _stmt_records = []
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
@@ -340,7 +345,7 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
 def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     global _script_path, _start_ns, _results, _filters, _line_hits
     global _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
-    global _call_stack, _emitted_f
+    global _call_stack, _emitted_f, _stmt_records
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
     _script_path = Path(sys.argv[0]).resolve()
     _emitted_f = False
@@ -353,6 +358,7 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     _last_ts = time.perf_counter_ns()
     _stack = []
     _call_stack = []
+    _stmt_records = []
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:

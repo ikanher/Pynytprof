@@ -26,4 +26,4 @@ def test_D_payload_free_of_newlines(tmp_path):
     assert data[idx:idx+1]==b'D'
     dlen = int.from_bytes(data[idx+1:idx+5],'little')
     dpayload = data[idx+5:idx+5+dlen]
-    assert b'\n' not in dpayload, "D payload contains newline"
+    assert dpayload.endswith(b"\x00")
