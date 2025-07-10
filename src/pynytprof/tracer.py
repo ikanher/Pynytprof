@@ -16,6 +16,8 @@ from types import FrameType
 from typing import Any, Dict, List
 import struct
 
+from ._pywrite import Writer as PyWriter
+
 try:
     from ._version import version as __version__
 except Exception:
@@ -28,42 +30,9 @@ warnings.filterwarnings(
     module="runpy",
 )
 
-_force_py = bool(os.environ.get("PYNTP_FORCE_PY"))
-_force_cwrite = bool(os.environ.get("PYNTP_FORCE_CWRITE"))
-_writer_env = os.environ.get("PYNYTPROF_WRITER")
+_force_py = bool(os.environ.get("PYNTP_FORCE_PY"))  # preserved for _ctrace logic
 
-_write = None
-Writer = None
-
-
-def _load_pywrite():
-    mod = importlib.import_module("pynytprof._pywrite")
-    return mod.write, mod.Writer
-
-
-def _load_cwrite():
-    try:
-        mod = importlib.import_module("pynytprof._cwrite")
-    except ModuleNotFoundError:
-        return None, None
-    if _force_cwrite or getattr(mod, "__build__", None) != __version__:
-        return None, None
-    return getattr(mod, "write", None), getattr(mod, "Writer", None)
-
-
-if _writer_env == "py" or _force_py:
-    _write, Writer = _load_pywrite()
-elif _writer_env == "c":
-    _write, Writer = _load_cwrite()
-    if Writer is None:
-        _write, Writer = _load_pywrite()
-else:
-    _write, Writer = _load_cwrite()
-    if Writer is None:
-        _write, Writer = _load_pywrite()
-
-if Writer is None:
-    _write, Writer = _load_pywrite()
+Writer = PyWriter
 
 _ctrace = None
 if not _force_py:
