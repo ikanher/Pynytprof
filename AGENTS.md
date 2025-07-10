@@ -3,6 +3,9 @@
 This document helps both **automated coding assistants** and **human contributors** understand how to navigate Pynytprof’s codebase, how pieces relate, and where to find authoritative references.
 
 To speed up things, always run parallel tests by passing `-n auto` to `pytest`.
+
+There's a debug flag available to inspect closer what's being written, set `PYNYTPROF_DEBUG=1` before running `pynytprof`. E.g. `PYNYTPROF_DEBUG=1 PYTHONPATH=src python -m pynytprof.tracer tests/example_script.py`. Currently produces 10-15 extra lines of output, so use when needed.
+
 ---
 
 ## 1. Purpose
