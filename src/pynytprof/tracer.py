@@ -181,8 +181,6 @@ def _write_nytprof(out_path: Path) -> None:
             w.write_chunk(b"D", b"")
         if not emitted_c:
             w.write_chunk(b"C", b"")
-
-        w.write_chunk(b"E", b"")
     finally:
         if getattr(w, "close", None):
             w.close()
@@ -216,8 +214,6 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
                 for fid, line, sid, inc, exc in calls
             )
             w.write_chunk(b"C", c_payload)
-        # Always terminate with an empty E-chunk
-        w.write_chunk(b"E", b"")
     if os.environ.get("PYNYTPROF_DEBUG"):
         data = Path(out_path).read_bytes()
         cutoff = data.index(b"\n\n") + 2
