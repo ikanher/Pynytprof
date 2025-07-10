@@ -15,4 +15,4 @@ def test_debug_per_event_logs(tmp_path, monkeypatch):
         [sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/example_script.py'],
         env=env, stderr=subprocess.PIPE, text=True
     )
-    assert 'EVENT CHUNK:' in proc.stderr
+    assert 'DEBUG: buffering chunk' in proc.stderr

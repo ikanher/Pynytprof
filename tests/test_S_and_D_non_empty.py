@@ -3,7 +3,11 @@ from pathlib import Path
 
 def test_S_and_D_non_empty(tmp_path, monkeypatch):
     out = tmp_path/'nytprof.out'
-    env = {**os.environ, "PYNYTPROF_WRITER": "py"}
+    env = {
+        **os.environ,
+        "PYNYTPROF_WRITER": "py",
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    }
     subprocess.check_call(
         [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "tests/example_script.py"],
         env=env,
