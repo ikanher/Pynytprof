@@ -126,6 +126,11 @@ def _emit_p(writer: Writer) -> None:
 
 def _write_nytprof(out_path: Path) -> None:
     w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
+    if os.environ.get("PYNYTPROF_DEBUG"):
+        print(
+            f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
+            file=sys.stderr,
+        )
     w.__enter__()
     try:
         _emit_f(w)
@@ -181,14 +186,15 @@ def _write_nytprof(out_path: Path) -> None:
     finally:
         if getattr(w, "close", None):
             w.close()
-        if os.environ.get("PYNYTPROF_DEBUG"):
-            data = Path(out_path).read_bytes()
-            cutoff = data.index(b"\n\n") + 2
-            print(data[cutoff:cutoff + 5])
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
     with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+        if os.environ.get("PYNYTPROF_DEBUG"):
+            print(
+                f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
+                file=sys.stderr,
+            )
         _emit_f(w)
 
         if lines:
@@ -211,10 +217,6 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
                 for fid, line, sid, inc, exc in calls
             )
             w.write_chunk(b"C", c_payload)
-    if os.environ.get("PYNYTPROF_DEBUG"):
-        data = Path(out_path).read_bytes()
-        cutoff = data.index(b"\n\n") + 2
-        print(data[cutoff:cutoff + 5])
 
 def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     global _last_ts

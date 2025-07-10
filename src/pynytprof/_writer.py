@@ -39,6 +39,12 @@ class Writer:
         }
 
     def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import sys
+            print(
+                f"EVENT CHUNK: tag={tag.decode()} len={len(payload)}",
+                file=sys.stderr,
+            )
         if payload:
             self._buf[tag].extend(payload)
 
@@ -85,6 +91,13 @@ class Writer:
                 recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
             if recs:
                 self._buffer_chunk(b"S", b"".join(recs))
+
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import sys
+            summary = ", ".join(
+                f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
+            )
+            print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
         hdr = _make_ascii_header(self._start_ns)
         self._fh.write(hdr)
