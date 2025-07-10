@@ -108,6 +108,9 @@ A: Add a function to `convert.py` and register it in `cli.py`.
 **Q: How do I build the C extensions?**  
 A: `pip install -e .` will compile `_cwrite` automatically.
 
+**Q: How to run tests faster?**
+A: `pytest -n auto` we have `pytest-xdist` pre-installed in environment.
+
 ---
 
 ## 8. Where Codex or other coding agents should look
