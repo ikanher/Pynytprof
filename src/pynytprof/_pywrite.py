@@ -169,9 +169,14 @@ class Writer:
         self._fh.write(hdr)
         for idx, tag in enumerate([b"F", b"S", b"D", b"C", b"E"], start=1):
             payload = self._buf.get(tag, b"")
+            payload = payload.replace(b"\n", b"\x01")
+            length = len(payload)
+            while b"\n" in length.to_bytes(4, "little"):
+                payload += b"\x00"
+                length = len(payload)
             off = self._fh.tell()
             self._fh.write(tag)
-            self._fh.write(len(payload).to_bytes(4, "little"))
+            self._fh.write(length.to_bytes(4, "little"))
             self._fh.write(payload)
             if os.getenv("PYNYTPROF_DEBUG"):
                 # Read back the first payload byte
