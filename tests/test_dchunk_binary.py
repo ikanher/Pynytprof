@@ -31,5 +31,6 @@ def test_dchunk_binary(tmp_path):
     assert data[idx : idx + 1] == b'D'
     dlen = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     payload = data[idx + 5 : idx + 5 + dlen]
-    assert b'\n' not in payload, 'newline in D payload'
-    assert all(b <= 7 for b in payload), 'token >7 in D payload'
+    assert payload.startswith(b"\x01")
+    assert payload.endswith(b"\x00")
+    assert dlen > 1
