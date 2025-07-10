@@ -16,6 +16,11 @@ from types import FrameType
 from typing import Any, Dict, List
 import struct
 
+try:
+    from ._version import version as __version__
+except Exception:
+    __version__ = "0.0.0"
+
 warnings.filterwarnings(
     "ignore",
     message="'pynytprof.tracer' found in sys.modules",
@@ -24,43 +29,39 @@ warnings.filterwarnings(
 )
 
 _force_py = bool(os.environ.get("PYNTP_FORCE_PY"))
+_force_cwrite = bool(os.environ.get("PYNTP_FORCE_CWRITE"))
 _writer_env = os.environ.get("PYNYTPROF_WRITER")
 
 _write = None
 Writer = None
-if _writer_env:
-    mod = {"py": "_pywrite", "c": "_cwrite"}.get(_writer_env)
-    if mod:
-        try:
-            _mod = importlib.import_module(f"pynytprof.{mod}")
-            _write = getattr(_mod, "write", None)
-            Writer = getattr(_mod, "Writer", None)
-        except ModuleNotFoundError:
-            _write = None
-            Writer = None
-    else:
-        raise ImportError(f"unknown writer: {_writer_env}")
-elif _force_py:
+def _load_pywrite():
+    mod = importlib.import_module("pynytprof._pywrite")
+    return mod.write, mod.Writer
+
+
+def _load_cwrite():
     try:
-        _mod = importlib.import_module("pynytprof._pywrite")
-        _write = getattr(_mod, "write", None)
-        Writer = getattr(_mod, "Writer", None)
+        mod = importlib.import_module("pynytprof._cwrite")
     except ModuleNotFoundError:
-        _write = None
-        Writer = None
+        return None, None
+    if _force_cwrite or getattr(mod, "__build__", None) != __version__:
+        return None, None
+    return getattr(mod, "write", None), getattr(mod, "Writer", None)
+
+
+if _writer_env == "py" or _force_py:
+    _write, Writer = _load_pywrite()
+elif _writer_env == "c":
+    _write, Writer = _load_cwrite()
+    if Writer is None:
+        _write, Writer = _load_pywrite()
 else:
-    for _mod_name in ("_writer", "_cwrite", "_pywrite"):
-        try:
-            _mod = importlib.import_module(f"pynytprof.{_mod_name}")
-            _write = getattr(_mod, "write", None)
-            Writer = getattr(_mod, "Writer", None)
-            break
-        except ModuleNotFoundError:  # pragma: no cover - optional
-            continue
+    _write, Writer = _load_cwrite()
+    if Writer is None:
+        _write, Writer = _load_pywrite()
+
 if Writer is None:
-    from ._pywrite import Writer  # type: ignore
-if _write is None:  # pragma: no cover - should ship with at least _pywrite
-    _write = importlib.import_module("pynytprof._pywrite").write
+    _write, Writer = _load_pywrite()
 
 _ctrace = None
 if not _force_py:
@@ -72,10 +73,6 @@ if not _force_py:
             continue
 
 __all__ = ["profile", "cli", "profile_script", "main", "profile_command"]
-try:
-    from ._version import version as __version__
-except Exception:
-    __version__ = "0.0.0"
 TICKS_PER_SEC = 10_000_000  # 100 ns per tick
 
 _results: Dict[int, List[int]] = {}
