@@ -66,4 +66,4 @@ as long as you respect the NYTProf chunk format.
 
 - The C writer is significantly faster and produces the same output as the Python writer.
 - If `_cwrite` cannot be loaded, a warning is issued and the pure-Python fallback is used.
-- The environment variable `PYWRITER` can force selection (`c` or `py`).
+- The environment variable `PYNYTPROF_WRITER` can force selection (`c` or `py`).
