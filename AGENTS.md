@@ -110,7 +110,7 @@ A: Add a function to `convert.py` and register it in `cli.py`.
 A: `pip install -e .` will compile `_cwrite` automatically.
 
 **Q: How to run tests faster?**
-A: `pytest -n auto` we have `pytest-xdist` pre-installed in environment.
+A: `pytest -n auto` we have `pytest-xdist`, install with `pip install -e .`
 
 ---
 
