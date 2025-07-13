@@ -21,6 +21,8 @@ def test_p_length_is_16(tmp_path, writer):
     monkeypatch.undo()
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
-    hdr = data[idx:idx + 5]
-    assert hdr == b"P\x10\x00\x00\x00"
-    assert data[idx+5:idx+9] == struct.pack('<I', os.getpid())
+    assert data[idx:idx+1] == b"P"
+    payload = data[idx+1:idx+17]
+    assert len(payload) == 16
+    pid, ppid, ts = struct.unpack("<IId", payload)
+    assert pid == os.getpid()

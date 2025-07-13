@@ -21,8 +21,8 @@ def test_p_record_format(tmp_path):
     p.wait()
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
-    assert data[idx + 1 : idx + 5] == b"\x10\x00\x00\x00"
-    payload = data[idx + 5 : idx + 21]
+    assert data[idx:idx+1] == b"P"
+    payload = data[idx + 1 : idx + 17]
     pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == p.pid
     assert ppid == os.getpid()

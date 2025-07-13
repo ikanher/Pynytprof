@@ -94,7 +94,7 @@ class Writer:
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
         self.header_size = len(_make_ascii_header(self._start_ns))
-        self.header_size += 1 + 4 + 16  # account for P record
+        self.header_size += 1 + 16  # account for P record (no length field)
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -157,9 +157,8 @@ class Writer:
                 f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
                 file=sys.stderr,
             )
-        length = struct.pack("<I", len(payload))
-        self._fh.write(b"P" + length + payload)
-        self.header_size += 1 + 4 + len(payload)
+        self._fh.write(b"P" + payload)
+        self.header_size = len(banner) + 1 + len(payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: P-len=16 pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
@@ -339,8 +338,7 @@ def write(
         assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
         if os.getenv('PYNYTPROF_DEBUG'):
             print(f"DEBUG: P-payload raw={binascii.hexlify(payload)}")
-        length = struct.pack('<I', len(payload))
-        f.write(b'P' + length + payload)
+        f.write(b'P' + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()

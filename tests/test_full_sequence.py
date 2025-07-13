@@ -14,8 +14,11 @@ def _tokens(out):
         tok = data[off:off+1]
         toks.append(tok)
         if tok == b'P':
-            length = int.from_bytes(data[off+1:off+5], 'little')
-            off += 5 + length
+            if data[off+1:off+5] == b'\x10\x00\x00\x00':
+                length = int.from_bytes(data[off+1:off+5], 'little')
+                off += 5 + length
+            else:
+                off += 1 + 16
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
