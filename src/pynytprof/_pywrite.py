@@ -24,7 +24,7 @@ NYTPROF_MINOR = int(_minor_match.group(1)) if _minor_match else 0
 
 
 def _make_ascii_header(start_ns: int) -> bytes:
-    now = format_datetime(datetime.datetime.now(datetime.timezone.utc))
+    now = format_datetime(datetime.datetime.now(datetime.timezone.utc)).lower()
     try:
         hz = os.sysconf("SC_CLK_TCK")  # type: ignore[arg-type]
     except (AttributeError, ValueError, OSError):
