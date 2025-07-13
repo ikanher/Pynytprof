@@ -15,7 +15,7 @@ def test_D_chunk_contains_records(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    idx += 17
+    idx += 21
     length = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + length
     assert data[idx:idx+1]==b'D'

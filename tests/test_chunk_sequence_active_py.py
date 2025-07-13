@@ -23,7 +23,8 @@ def test_active_writer_chunk_sequence(tmp_path, monkeypatch):
         tok = data[off : off + 1]
         tags.append(tok)
         if tok == b"P":
-            off += 17
+            length = int.from_bytes(data[off + 1 : off + 5], "little")
+            off += 5 + length
             continue
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length

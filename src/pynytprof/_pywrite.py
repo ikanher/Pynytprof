@@ -147,12 +147,13 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack("<IId", pid, ppid, ts)
-        self._fh.write(b"P" + payload)
-        self.header_size = len(banner) + 1 + len(payload)
+        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
+        length_bytes = struct.pack("<I", 16)
+        self._fh.write(b"P" + length_bytes + payload)
+        self.header_size = len(banner) + 1 + 4 + 16
 
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: P-payload pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
+            print(f"DEBUG: P-len=16 pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
             print(
                 f"DEBUG: header_size={self.header_size} first_token=P",
                 file=sys.stderr,
@@ -302,8 +303,8 @@ def write(
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack('<IId', pid, ppid, ts)
-        f.write(b'P' + payload)
+        payload = struct.pack('<II', pid, ppid) + struct.pack('<d', ts)
+        f.write(b'P' + struct.pack('<I', 16) + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
