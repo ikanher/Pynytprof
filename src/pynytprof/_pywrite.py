@@ -139,17 +139,20 @@ class Writer:
         assert banner.endswith(b"\n")
         self._fh.write(banner)
 
-        import os, time
+        import struct, time, os
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: banner_end={banner[-9:]}", file=sys.stderr)
 
-        start_us = int(time.time() * 1e6)
-        payload = struct.pack("<QII", start_us, os.getpid(), os.getppid())
+        pid = os.getpid()
+        ppid = os.getppid()
+        ts = time.time()
+        payload = struct.pack("<IId", pid, ppid, ts)
         self._fh.write(b"P" + payload)
         self.header_size = len(banner) + 1 + len(payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: P-payload pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
             print(
                 f"DEBUG: header_size={self.header_size} first_token=P",
                 file=sys.stderr,
@@ -295,9 +298,11 @@ def write(
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
         f.write(banner)
-        import os, struct, time
-        start_us = int(time.time() * 1e6)
-        payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
+        import struct, time, os
+        pid = os.getpid()
+        ppid = os.getppid()
+        ts = time.time()
+        payload = struct.pack('<IId', pid, ppid, ts)
         f.write(b'P' + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()

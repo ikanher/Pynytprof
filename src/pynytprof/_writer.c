@@ -100,15 +100,24 @@ static void emit_banner(FILE *fp) {
             PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
 }
 
+static void put_double_le(unsigned char *p, double v) {
+    union {
+        double d;
+        unsigned char b[8];
+    } u;
+    u.d = v;
+    memcpy(p, u.b, 8);
+}
+
 static void emit_header(FILE *fp) {
     emit_banner(fp);
     unsigned char payload[16];
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    uint64_t start_us = (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)(ts.tv_nsec / 1000);
-    put_u64le(payload, start_us);
-    put_u32le(payload + 8, (uint32_t)getpid());
-    put_u32le(payload + 12, (uint32_t)getppid());
+    double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+    put_u32le(payload, (uint32_t)getpid());
+    put_u32le(payload + 4, (uint32_t)getppid());
+    put_double_le(payload + 8, t);
     fputc('P', fp);
     fwrite(payload, 1, 16, fp);
 

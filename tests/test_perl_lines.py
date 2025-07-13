@@ -30,7 +30,7 @@ def test_perl_lines(tmp_path):
         "print Devel::NYTProf::Data->new({filename=>shift})->lines",
         str(out_file),
     ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True)
     if res.returncode != 0:
         pytest.skip("NYTProf Perl module missing")
-    assert int(res.stdout.strip()) > 0
+    assert int(res.stdout.decode().strip()) > 0
