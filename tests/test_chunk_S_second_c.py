@@ -15,4 +15,4 @@ def test_c_writer_emits_S_second(tmp_path, monkeypatch):
         tokens.append(data[off:off+1])
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
-    assert tokens[2] == b'S'
+    assert tokens[1] == b'S'

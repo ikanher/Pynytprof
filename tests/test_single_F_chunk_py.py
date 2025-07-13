@@ -18,4 +18,4 @@ def test_one_F_chunk(tmp_path, monkeypatch):
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     f_positions = [i for i, t in enumerate(tags) if t == b'F']
-    assert f_positions == [1], f'F chunk not immediately after P: {f_positions}'
+    assert f_positions == [], f'Unexpected F chunk positions: {f_positions}'

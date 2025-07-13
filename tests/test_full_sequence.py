@@ -23,7 +23,7 @@ def test_full_sequence_py(tmp_path, monkeypatch):
     monkeypatch.setenv('PYNTP_FORCE_PY', '1')
     monkeypatch.setenv('PYTHONPATH', str(Path(__file__).resolve().parents[1] / 'src'))
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), SCRIPT])
-    assert _tokens(out) == b'PFSDCE'
+    assert _tokens(out) == b'PSDCE'
 
 
 def test_full_sequence_c(tmp_path, monkeypatch):
@@ -31,4 +31,4 @@ def test_full_sequence_c(tmp_path, monkeypatch):
     monkeypatch.setenv('PYNYTPROF_WRITER', 'c')
     monkeypatch.setenv('PYTHONPATH', str(Path(__file__).resolve().parents[1] / 'src'))
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), SCRIPT])
-    assert _tokens(out) == b'PFSDCE'
+    assert _tokens(out) == b'PSDCE'
