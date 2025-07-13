@@ -26,4 +26,4 @@ def test_ascii_header(tmp_path, writer):
     hdr_end = data.index(b"\n", data.index(b"\n", data.index(b"\n") + 1) + 1) + 1
     assert b"\0" not in data[:hdr_end]
     cutoff = get_chunk_start(data)
-    assert data[cutoff:cutoff + 1] == b"F"
+    assert data[cutoff:cutoff + 1] == b"P"

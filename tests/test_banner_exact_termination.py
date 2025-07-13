@@ -19,4 +19,4 @@ def test_banner_ends_with_two_newlines(tmp_path):
     idx = data.find(b"\n\n")
     assert idx != -1, "Did not find \\n\\n"
     next_bytes = data[idx:idx+3]
-    assert next_bytes == b"\n\nF", f"Expected exactly '\\n\\nF', got {next_bytes}"
+    assert next_bytes == b"\n\nP", f"Expected exactly '\\n\\nP', got {next_bytes}"

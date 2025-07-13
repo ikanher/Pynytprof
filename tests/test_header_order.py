@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess, os, sys
 from tests.conftest import get_chunk_start
 
-def test_first_token_is_F(tmp_path):
+def test_first_token_is_P(tmp_path):
     out = tmp_path / 'nytprof.out'
     env = {
         **os.environ,
@@ -17,5 +17,5 @@ def test_first_token_is_F(tmp_path):
     ], env=env)
     data = out.read_bytes()
     cutoff = get_chunk_start(data)
-    assert data[cutoff] == 0x46  # 'F'
+    assert data[cutoff] == 0x50  # 'P'
     assert data[cutoff - 1] == 0x0A  # banner ends with a blank line

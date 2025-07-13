@@ -31,4 +31,4 @@ def test_no_spurious_tags(tmp_path, monkeypatch):
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length
 
-    assert tags == [b"F", b"S", b"D", b"C", b"E"], f"Found spurious tags: {tags!r}"
+    assert tags == [b"P", b"S", b"D", b"C", b"E"], f"Found spurious tags: {tags!r}"
