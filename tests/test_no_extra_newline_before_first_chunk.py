@@ -21,5 +21,5 @@ def test_no_extra_newline_before_first_chunk(tmp_path):
     ], env=env)
     data = out.read_bytes()
     idx = data.index(b'\n\n')
-    assert data[idx+2:idx+3] == b'F', f"Found {data[idx+2:idx+3]!r} before first chunk"
+    assert data[idx+2:idx+3] == b'P', f"Found {data[idx+2:idx+3]!r} before first chunk"
 

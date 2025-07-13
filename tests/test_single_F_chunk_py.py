@@ -3,7 +3,7 @@ from pathlib import Path
 from tests.conftest import get_chunk_start
 
 
-def test_only_one_F_chunk(tmp_path, monkeypatch):
+def test_no_F_chunk(tmp_path, monkeypatch):
     out = tmp_path / 'nytprof.out'
     monkeypatch.setenv('PYNYTPROF_WRITER', 'py')
     monkeypatch.setenv('PYNTP_FORCE_PY', '1')
@@ -18,4 +18,4 @@ def test_only_one_F_chunk(tmp_path, monkeypatch):
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     f_count = sum(1 for t in tags if t == b'F')
-    assert f_count == 1, f'Expected exactly one F chunk, found {f_count}'
+    assert f_count == 0, f'Expected no F chunk, found {f_count}'

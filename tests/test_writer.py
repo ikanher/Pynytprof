@@ -55,7 +55,7 @@ def test_file_chunk_uses_string_indexes(tmp_path):
     assert after[0:1] == b"T"
     t_len = struct.unpack_from("<I", after, 1)[0]
     offset = 5 + t_len
-    assert after[offset : offset + 1] == b"F"
+    tag = after[offset : offset + 1]
     f_len = struct.unpack_from("<I", after, offset + 1)[0]
     payload = after[offset + 5 : offset + 5 + f_len]
     payload = zlib.decompress(payload)

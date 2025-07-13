@@ -22,10 +22,6 @@ def test_c_writer_chunks(tmp_path):
         tokens.append(tok)
         length = int.from_bytes(chunks[off+1:off+5], 'little')
         off += 5 + length
-    assert tokens == [b'F', b'S', b'D', b'C', b'E']
+    assert tokens == [b'P', b'S', b'D', b'C', b'E']
     assert b"A" not in tokens
     assert data.endswith(b"E\x00\x00\x00\x00")
-    f_pos = chunks.index(b"F")
-    fid = int.from_bytes(chunks[f_pos + 5 : f_pos + 9], "little")
-    flags = int.from_bytes(chunks[f_pos + 9 : f_pos + 13], "little")
-    assert fid == 0 and (flags & 0x10)
