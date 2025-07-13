@@ -20,6 +20,9 @@ def test_c_writer_chunks(tmp_path):
     while off < len(chunks):
         tok = chunks[off:off+1]
         tokens.append(tok)
+        if tok == b'P':
+            off += 17
+            continue
         length = int.from_bytes(chunks[off+1:off+5], 'little')
         off += 5 + length
     assert tokens == [b'P', b'S', b'D', b'C', b'E']

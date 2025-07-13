@@ -79,20 +79,29 @@ def read(path: str) -> dict:
         "calls": [],
         "records": [],
     }
+    first = True
     while offset < len(data):
         tok = data[offset : offset + 1]
         if not tok:
             raise ValueError("unexpected EOF")
         tok = tok.decode()
         offset += 1
-        if offset + 4 > len(data):
-            raise ValueError("truncated length")
-        length = struct.unpack_from("<I", data, offset)[0]
-        offset += 4
-        if offset + length > len(data):
-            raise ValueError("truncated payload")
-        payload = data[offset : offset + length]
-        offset += length
+        if first and tok == "P":
+            if offset + 16 > len(data):
+                raise ValueError("truncated payload")
+            length = 16
+            payload = data[offset : offset + length]
+            offset += length
+            first = False
+        else:
+            if offset + 4 > len(data):
+                raise ValueError("truncated length")
+            length = struct.unpack_from("<I", data, offset)[0]
+            offset += 4
+            if offset + length > len(data):
+                raise ValueError("truncated payload")
+            payload = data[offset : offset + length]
+            offset += length
 
         if tok == "A":
             if not payload or payload[-1] != 0:
@@ -105,8 +114,8 @@ def read(path: str) -> dict:
         elif tok == "P":
             if length != 16:
                 raise ValueError("bad P length")
-            pid, ppid, start = struct.unpack_from("<IId", payload, 0)
-            result["attrs"].update({"pid": pid, "ppid": ppid, "start_time": start})
+            start, pid, ppid = struct.unpack_from("<QII", payload, 0)
+            result["attrs"].update({"start_time": start, "pid": pid, "ppid": ppid})
         elif tok == "F":
             p = 0
             while p < length:

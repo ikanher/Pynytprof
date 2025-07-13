@@ -53,17 +53,25 @@ def verify(path: str, quiet: bool = False) -> bool:
                             raise ValueError("truncated attrs")
             last = None
             count = 0
+            first = True
             while True:
                 tag = f.read(1)
                 if not tag:
                     raise ValueError("truncated tag")
-                length_b = f.read(4)
-                if len(length_b) != 4:
-                    raise ValueError("truncated length")
-                length = struct.unpack("<I", length_b)[0]
-                payload = f.read(length)
-                if len(payload) != length:
-                    raise ValueError("truncated payload")
+                if first and tag == b"P":
+                    payload = f.read(16)
+                    if len(payload) != 16:
+                        raise ValueError("truncated payload")
+                    length = 16
+                    first = False
+                else:
+                    length_b = f.read(4)
+                    if len(length_b) != 4:
+                        raise ValueError("truncated length")
+                    length = struct.unpack("<I", length_b)[0]
+                    payload = f.read(length)
+                    if len(payload) != length:
+                        raise ValueError("truncated payload")
                 count += 1
                 last = tag
                 if tag == b"E":

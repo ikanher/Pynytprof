@@ -11,7 +11,11 @@ def _tokens(out):
     toks = []
     off = cutoff
     while off < len(data):
-        toks.append(data[off:off+1])
+        tok = data[off:off+1]
+        toks.append(tok)
+        if tok == b'P':
+            off += 17
+            continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     return b''.join(toks)

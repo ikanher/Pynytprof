@@ -93,7 +93,7 @@ class Writer:
             b"C": bytearray(),
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
-        self.header_size = len(_make_ascii_header(self._start_ns)) + 21
+        self.header_size = len(_make_ascii_header(self._start_ns)) + 17
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -139,15 +139,15 @@ class Writer:
         assert banner.endswith(b"\n")
         self._fh.write(banner)
 
-        import os, struct, time
+        import os, time
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: banner_end={banner[-9:]}", file=sys.stderr)
 
         start_us = int(time.time() * 1e6)
         payload = struct.pack("<QII", start_us, os.getpid(), os.getppid())
-        self._fh.write(b"P" + len(payload).to_bytes(4, "little") + payload)
-        self.header_size = len(banner) + 1 + 4 + len(payload)
+        self._fh.write(b"P" + payload)
+        self.header_size = len(banner) + 1 + len(payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
@@ -298,7 +298,7 @@ def write(
         import os, struct, time
         start_us = int(time.time() * 1e6)
         payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
-        f.write(b'P' + struct.pack('<I', len(payload)) + payload)
+        f.write(b'P' + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()

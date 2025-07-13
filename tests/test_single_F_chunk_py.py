@@ -14,7 +14,11 @@ def test_one_F_chunk(tmp_path, monkeypatch):
     tags = []
     off = cutoff
     while off < len(data):
-        tags.append(data[off:off+1])
+        tok = data[off:off+1]
+        tags.append(tok)
+        if tok == b'P':
+            off += 17
+            continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     f_positions = [i for i, t in enumerate(tags) if t == b'F']
