@@ -109,18 +109,28 @@ static void put_double_le(unsigned char *p, double v) {
     memcpy(p, u.b, 8);
 }
 
+static void store_le32(FILE *fp, uint32_t v) {
+    unsigned char b[4];
+    put_u32le(b, v);
+    fwrite(b, 1, 4, fp);
+}
+
+static void store_le_double(FILE *fp, double v) {
+    unsigned char b[8];
+    put_double_le(b, v);
+    fwrite(b, 1, 8, fp);
+}
+
 static void emit_header(FILE *fp) {
     emit_banner(fp);
-    unsigned char payload[16];
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
-    put_u32le(payload, (uint32_t)getpid());
-    put_u32le(payload + 4, (uint32_t)getppid());
-    put_double_le(payload + 8, t);
     fputc('P', fp);
-    fwrite("\x10\x00\x00\x00", 1, 4, fp);
-    fwrite(payload, 1, 16, fp);
+    store_le32(fp, 16);
+    store_le32(fp, (uint32_t)getpid());
+    store_le32(fp, (uint32_t)getppid());
+    store_le_double(fp, t);
 
 }
 
