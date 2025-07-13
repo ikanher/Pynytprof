@@ -86,18 +86,17 @@ class Writer:
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
         self._buf: dict[bytes, bytearray] = {
-            b"F": bytearray(),
             b"S": bytearray(),
             b"D": bytearray(),
             b"C": bytearray(),
         }
-        self._chunk_order = [b"F", b"S", b"D", b"C", b"E"]
-        self._header_len = len(_make_ascii_header(self._start_ns))
+        self._chunk_order = [b"S", b"D", b"C", b"E"]
+        self.header_size = len(_make_ascii_header(self._start_ns)) + 21
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
     def _calc_start_offset(self, tag: bytes) -> int:
-        offset = self._header_len
+        offset = self.header_size
         for t in self._chunk_order:
             if t == tag:
                 break
@@ -132,6 +131,21 @@ class Writer:
         buf.append(0)
         return bytes(buf)
 
+    def _write_header(self) -> None:
+        banner = _make_ascii_header(self._start_ns)
+        self._fh.write(banner)
+        import os, struct, time
+        start_us = int(time.time() * 1e6)
+        payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
+        length = struct.pack('<I', len(payload))
+        self._fh.write(b'P' + length + payload)
+        self.header_size = len(banner) + 1 + 4 + len(payload)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(
+                f"DEBUG: header_size={self.header_size} first_token=P",
+                file=sys.stderr,
+            )
+
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
 
@@ -152,6 +166,7 @@ class Writer:
 
     def __enter__(self):
         self._fh = open(self._path, "wb")
+        self._write_header()
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -198,14 +213,12 @@ class Writer:
 
             summary = {
                 tag.decode(): len(self._buf.get(tag, b""))
-                for tag in [b"F", b"S", b"D", b"C", b"E"]
+                for tag in [b"S", b"D", b"C", b"E"]
             }
             print("FINAL CHUNKS:", summary, file=sys.stderr)
 
-        hdr = _make_ascii_header(self._start_ns)
-        self._fh.write(hdr)
         chunk_lengths = []
-        for idx, tag in enumerate([b"F", b"S", b"D", b"C", b"E"], start=1):
+        for idx, tag in enumerate([b"S", b"D", b"C", b"E"], start=1):
             payload = self._buf.get(tag, b"")
             payload = payload.replace(b"\n", b"\x01")
             length = len(payload)
@@ -230,7 +243,7 @@ class Writer:
                 )
         if os.getenv("PYNYTPROF_DEBUG"):
             eof = self._fh.tell()
-            expected = len(hdr) + sum(5 + l for l in chunk_lengths)
+            expected = self.header_size + sum(5 + l for l in chunk_lengths)
             total_chunks = sum(chunk_lengths)
             print(f"DEBUG: EOF at offset=0x{eof:x}", file=sys.stderr)
             print(
@@ -271,17 +284,16 @@ def write(
     """Write NYTProf file purely in Python."""
     path = Path(out_path)
     with path.open("wb") as f:
-        f.write(_make_ascii_header(start_ns))
+        banner = _make_ascii_header(start_ns)
+        f.write(banner)
+        import os, struct, time
+        start_us = int(time.time() * 1e6)
+        payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
+        f.write(b'P' + struct.pack('<I', len(payload)) + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
             files = [(0, 0x10, st.st_size, int(st.st_mtime), str(script))]
-
-        f_payload = b"".join(
-            struct.pack("<IIII", fid, flags, size, mtime) + path.encode() + b"\0"
-            for fid, flags, size, mtime, path in files
-        )
-        f.write(_chunk(b"F", f_payload))
 
         s_payload = b"".join(
             struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)

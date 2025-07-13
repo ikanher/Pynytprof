@@ -109,7 +109,6 @@ def _write_nytprof(out_path: Path) -> None:
         )
     w.__enter__()
     try:
-        _emit_f(w)
         w._stmt_records.extend(_stmt_records)
         import struct
 
@@ -165,8 +164,6 @@ def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
                 f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
                 file=sys.stderr,
             )
-        _emit_f(w)
-
         if lines:
             s_payload = b"".join(
                 struct.pack("<IIIQQ", fid, line, cnt, inc // 100, exc // 100)
