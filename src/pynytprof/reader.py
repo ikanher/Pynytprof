@@ -89,14 +89,18 @@ def read(path: str) -> dict:
         if first and tok == "P":
             if offset + 4 > len(data):
                 raise ValueError("truncated length")
-            length = struct.unpack_from("<I", data, offset)[0]
-            offset += 4
-            if length != 16:
-                raise ValueError("bad P length")
-            if offset + length > len(data):
-                raise ValueError("truncated payload")
-            payload = data[offset : offset + length]
-            offset += length
+            maybe_len = struct.unpack_from("<I", data, offset)[0]
+            if maybe_len == 16 and offset + 4 + 16 <= len(data):
+                length = 16
+                offset += 4
+                payload = data[offset : offset + length]
+                offset += length
+            else:
+                length = 16
+                payload = data[offset : offset + length]
+                if len(payload) != length:
+                    raise ValueError("truncated payload")
+                offset += length
             first = False
         else:
             if offset + 4 > len(data):
