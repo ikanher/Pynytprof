@@ -92,4 +92,7 @@ golden profile captured 2025-07-09. Except for time-dependent bytes, the first
 (notably `NYTP_write_process_start` and `load_profile_to_hv`). Use it to keep
 Pynytprof writers byte-for-byte compatible.
 
+`vendor/NYTProf_refs/FileHandle.xs` contains the actual writing functions, but
+the file is over 1500 lines, so use `grep` or similar to search for them.
+
 ---------------------------------------------------------------------
