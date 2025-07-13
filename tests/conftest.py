@@ -1,3 +1,3 @@
 def get_chunk_start(data):
-    cutoff = data.index(b"\n\n") + 2
+    cutoff = data.index(b"\nP") + 1
     return cutoff

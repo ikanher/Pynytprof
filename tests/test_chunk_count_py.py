@@ -14,7 +14,7 @@ def test_only_five_top_level_chunks(tmp_path, monkeypatch):
         'tests/example_script.py'
     ])
     data = out.read_bytes()
-    cutoff = data.index(b'\n\n')+2
+    cutoff = data.index(b'\nP') + 1
     tags = []
     off = cutoff
     while off < len(data):

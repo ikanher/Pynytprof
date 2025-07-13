@@ -17,7 +17,7 @@ def test_pchunk_no_newlines(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b'\n\n') + 2
+    idx = data.index(b'\nP') + 1
     assert data[idx:idx+1] == b'P'
     length = int.from_bytes(data[idx+1:idx+5], 'little')
     payload = data[idx+5: idx+5+length]

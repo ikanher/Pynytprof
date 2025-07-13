@@ -9,7 +9,7 @@ def test_c_writer_emits_D_chunk(tmp_path):
     }
     subprocess.check_call([sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"], env=env)
     data = out.read_bytes()
-    cutoff = data.index(b"\n\n") + 2
+    cutoff = data.index(b"\nP") + 1
     tokens = []
     off = cutoff
     while off < len(data):

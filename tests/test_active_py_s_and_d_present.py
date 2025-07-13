@@ -9,7 +9,7 @@ def test_active_writer_includes_S_and_D(tmp_path, monkeypatch):
         sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/example_script.py'
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b"\n\n")+2
+    idx = data.index(b"\nP") + 1
     tags=[]
     off=idx
     while off < len(data):

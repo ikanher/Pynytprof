@@ -23,7 +23,7 @@ def test_dchunk_binary(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    idx = data.index(b'\n\n') + 2
+    idx = data.index(b'\nP') + 1
     # skip P and S
     for _ in range(2):
         length = int.from_bytes(data[idx + 1 : idx + 5], 'little')

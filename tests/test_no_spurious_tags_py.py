@@ -22,7 +22,7 @@ def test_no_spurious_tags(tmp_path, monkeypatch):
         env=os.environ,
     )
     data = out.read_bytes()
-    idx = data.index(b"\n\n") + 2
+    idx = data.index(b"\nP") + 1
     tags = []
     off = idx
     while off < len(data):

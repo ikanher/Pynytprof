@@ -58,7 +58,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         "!calls=1",
         "!evals=0",
     ]
-    hdr = ("\n".join(lines) + "\n\n").encode()
+    hdr = ("\n".join(lines) + "\n").encode()
     assert b"\0" not in hdr
     return hdr
 
