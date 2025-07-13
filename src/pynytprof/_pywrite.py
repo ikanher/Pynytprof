@@ -148,8 +148,7 @@ class Writer:
         ppid = os.getppid()
         ts = time.time()
         payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
-        length_bytes = struct.pack("<I", 16)
-        self._fh.write(b"P" + length_bytes + payload)
+        self._fh.write(b"P" + b"\x10\x00\x00\x00" + payload)
         self.header_size = len(banner) + 1 + 4 + 16
 
         if os.getenv("PYNYTPROF_DEBUG"):
