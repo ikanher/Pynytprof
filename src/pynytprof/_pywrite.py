@@ -93,7 +93,8 @@ class Writer:
             b"C": bytearray(),
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
-        self.header_size = len(_make_ascii_header(self._start_ns)) + 17
+        self.header_size = len(_make_ascii_header(self._start_ns))
+        self.header_size += 1 + 4 + 16  # account for P record
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -148,8 +149,13 @@ class Writer:
         ppid = os.getppid()
         ts = time.time()
         payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
+        assert len(payload) == 16, f"P-payload len {len(payload)} != 16"
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import binascii
+            print(f"DEBUG: P-hex={binascii.hexlify(payload)}", file=sys.stderr)
         self._fh.write(b"P" + b"\x10\x00\x00\x00" + payload)
-        self.header_size = len(banner) + 1 + 4 + 16
+        self.header_size = len(banner)
+        self.header_size += 1 + 4 + len(payload)  # == 21
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: P-len=16 pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
