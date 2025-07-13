@@ -153,7 +153,9 @@ def _write_nytprof(out_path: Path) -> None:
         if not emitted_c:
             w.write_chunk(b"C", b"")
     finally:
-        if getattr(w, "close", None):
+        if getattr(w, "finalize", None):
+            w.finalize()
+        elif getattr(w, "close", None):
             w.close()
 
 

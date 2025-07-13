@@ -188,7 +188,7 @@ class Writer:
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        self.close()
+        self.finalize()
 
     def close(self) -> None:
         if not self._fh:
@@ -273,6 +273,29 @@ class Writer:
 
         self._fh.close()
         self._fh = None
+
+    def finalize(self) -> None:
+        """Close the file and optionally verify TLV boundaries."""
+        self.close()
+        if not os.getenv("PYNYTPROF_DEBUG"):
+            return
+        fpath = str(self._path)
+        print("DEBUG: TLV parse check on", fpath)
+        with open(fpath, "rb") as fh:
+            data = fh.read()
+        i = self.header_size
+        chunk = 1
+        while i < len(data):
+            tag = data[i : i + 1]
+            if tag == b"":
+                break
+            length = int.from_bytes(data[i + 1 : i + 5], "little")
+            print(
+                f"DEBUG: chunk {chunk} tag={tag!r} offset=0x{i:x} len={length}"
+            )
+            i += 5 + length
+            chunk += 1
+        print("DEBUG: TLV parse ended at offset=0x%x" % i)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         data = tag[:1]
