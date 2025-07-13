@@ -13,7 +13,7 @@ def test_s_offset_after_p(tmp_path):
     tracer.profile_command("pass", out_path=out)
     data = out.read_bytes()
     banner_end = data.index(b'!evals=0\n') + len(b'!evals=0\n')
-    pid, ppid, ts = struct.unpack('<IId', data[banner_end+1:banner_end+17])
-    expected_s_offset = banner_end + 1 + 16
+    pid, ppid, ts = struct.unpack('<IId', data[banner_end+1+4:banner_end+1+4+16])
+    expected_s_offset = banner_end + 1 + 4 + 16
     idx = data.index(b'S', banner_end)
     assert idx == expected_s_offset

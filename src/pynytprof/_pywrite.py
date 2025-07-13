@@ -94,7 +94,7 @@ class Writer:
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
         self.header_size = len(_make_ascii_header(self._start_ns))
-        self.header_size += 1 + 16  # account for P record (no length field)
+        self.header_size += 1 + 4 + 16  # account for P record with length field
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -149,8 +149,8 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        import struct, binascii
-        payload = struct.pack("<IId", pid, ppid, ts)
+        import binascii
+        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
         assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
@@ -158,11 +158,15 @@ class Writer:
                 file=sys.stderr,
             )
             self._debug_chunk_info(b"P", payload, self.header_size)
-        self._fh.write(b"P" + payload)
-        self.header_size = len(banner) + 1 + len(payload)
+        length_bytes = struct.pack("<I", len(payload))
+        self._fh.write(b"P" + length_bytes + payload)
+        self.header_size = len(banner) + 1 + 4 + len(payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: P-len=16 pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
+            print(
+                f"DEBUG: wrote P TLV, len=16, pid={pid},ppid={ppid},ts={ts:.6f}",
+                file=sys.stderr,
+            )
             print(
                 f"DEBUG: header_size={self.header_size} first_token=P",
                 file=sys.stderr,
@@ -287,7 +291,7 @@ class Writer:
         print("DEBUG: TLV parse check on", fpath)
         with open(fpath, "rb") as fh:
             data = fh.read()
-        banner_len = self.header_size - 17  # account for P record (17 bytes)
+        banner_len = self.header_size - 21  # account for P record (21 bytes)
         i = banner_len
         chunk = 1
         if data[i:i+1] == b"P":
@@ -295,7 +299,7 @@ class Writer:
             print(
                 f"DEBUG: chunk {chunk} tag={data[i:i+1]!r} offset=0x{i:x} len={length}"
             )
-            i += 1 + length
+            i += 1 + 4 + length
             chunk += 1
         while i < len(data):
             tag = data[i : i + 1]
