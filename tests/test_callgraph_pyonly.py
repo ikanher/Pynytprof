@@ -3,6 +3,7 @@ import sys
 import subprocess
 import struct
 from pathlib import Path
+from tests.conftest import get_chunk_start
 
 
 def test_callgraph_py(tmp_path):
@@ -19,10 +20,13 @@ def test_callgraph_py(tmp_path):
         [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), str(script)], env=env
     )
     data = out.read_bytes()
-    d_pos = data.index(b"D")
+    start = get_chunk_start(data)
+    p_len = struct.unpack_from("<I", data, start + 1)[0]
+    off = start + 5 + p_len
+    d_pos = data.index(b"D", off)
     d_len = struct.unpack_from("<I", data, d_pos + 1)[0]
     assert d_len >= 1
-    c_pos = data.index(b"C")
+    c_pos = data.index(b"C", d_pos)
     c_len = struct.unpack_from("<I", data, c_pos + 1)[0]
     rec_size = struct.calcsize("<IIIQQ")
     assert c_len % rec_size == 0 and c_len >= rec_size
