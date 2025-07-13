@@ -135,6 +135,8 @@ class Writer:
         banner = _make_ascii_header(self._start_ns)
         self._fh.write(banner)
         import os, struct, time
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(f"DEBUG: banner_end={banner[-9:]}", file=sys.stderr)
         start_us = int(time.time() * 1e6)
         payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
         length = struct.pack('<I', len(payload))
