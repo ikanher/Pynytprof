@@ -59,10 +59,15 @@ def verify(path: str, quiet: bool = False) -> bool:
                 if not tag:
                     raise ValueError("truncated tag")
                 if first and tag == b"P":
-                    payload = f.read(16)
-                    if len(payload) != 16:
+                    length_b = f.read(4)
+                    if len(length_b) != 4:
+                        raise ValueError("truncated length")
+                    length = struct.unpack("<I", length_b)[0]
+                    if length != 16:
+                        raise ValueError("bad length")
+                    payload = f.read(length)
+                    if len(payload) != length:
                         raise ValueError("truncated payload")
-                    length = 16
                     first = False
                 else:
                     length_b = f.read(4)

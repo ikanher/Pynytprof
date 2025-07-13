@@ -20,6 +20,7 @@ def test_p_record_length(tmp_path):
     ], env=env)
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
-    assert data[idx:idx+17][0] == 0x50
-    assert data[idx+17:idx+18] in (b"S", b"C")
+    assert data[idx:idx+1] == b"P"
+    assert data[idx+1:idx+5] == b"\x10\x00\x00\x00"
+    assert data[idx+21:idx+22] in (b"S", b"C")
 
