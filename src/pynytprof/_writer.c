@@ -115,31 +115,6 @@ static void emit_header(FILE *fp) {
     fwrite(lenbuf, 1, 4, fp);
     fwrite(payload, 1, 16, fp);
 
-    /* emit F chunk for the main script */
-    const char *argv0 = NULL;
-    PyObject *argv = PySys_GetObject("argv");
-    if (argv && PyList_Check(argv) && PyList_Size(argv) > 0) {
-        PyObject *item = PyList_GetItem(argv, 0);
-        if (PyUnicode_Check(item))
-            argv0 = PyUnicode_AsUTF8(item);
-    }
-    if (!argv0)
-        argv0 = "";
-    struct stat st;
-    if (stat(argv0, &st) == 0) {
-        size_t plen = strlen(argv0);
-        uint32_t len = 16 + (uint32_t)plen + 1;
-        put_u32le(lenbuf, len);
-        fputc('F', fp);
-        fwrite(lenbuf, 1, 4, fp);
-        unsigned char rec[16];
-        put_u32le(rec, 0);
-        put_u32le(rec + 4, 0x10);
-        put_u32le(rec + 8, (uint32_t)st.st_size);
-        put_u32le(rec + 12, (uint32_t)st.st_mtime);
-        fwrite(rec, 1, 16, fp);
-        fwrite(argv0, 1, plen + 1, fp);
-    }
 }
 
 static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
