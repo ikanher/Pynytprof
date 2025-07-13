@@ -109,10 +109,7 @@ static void emit_header(FILE *fp) {
     put_u64le(payload, start_us);
     put_u32le(payload + 8, (uint32_t)getpid());
     put_u32le(payload + 12, (uint32_t)getppid());
-    unsigned char lenbuf[4];
-    put_u32le(lenbuf, 16);
     fputc('P', fp);
-    fwrite(lenbuf, 1, 4, fp);
     fwrite(payload, 1, 16, fp);
 
 }

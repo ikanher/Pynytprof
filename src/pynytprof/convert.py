@@ -30,13 +30,20 @@ def _parse(path: str) -> tuple[dict, dict, dict, list, list]:
     defs: dict[int, dict] = {}
     calls: list[tuple[int, int, int, int, int]] = []
     lines: list[tuple[int, int, int, int, int]] = []
+    first = True
     while off < len(data):
         tok = data[off : off + 1].decode()
         off += 1
-        length = struct.unpack_from("<I", data, off)[0]
-        off += 4
-        payload = data[off : off + length]
-        off += length
+        if first and tok == "P":
+            payload = data[off : off + 16]
+            off += 16
+            first = False
+            length = 16
+        else:
+            length = struct.unpack_from("<I", data, off)[0]
+            off += 4
+            payload = data[off : off + length]
+            off += length
         if tok == "A":
             attrs = {
                 k.decode(): int(v)

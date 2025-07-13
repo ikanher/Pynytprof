@@ -16,9 +16,7 @@ def test_D_payload_free_of_newlines(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    # skip P
-    plen = int.from_bytes(data[idx+1:idx+5],'little')
-    idx += 5+plen
+    idx += 17  # skip P
     # skip S
     slen = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + slen

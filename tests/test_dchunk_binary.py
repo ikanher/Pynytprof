@@ -24,10 +24,9 @@ def test_dchunk_binary(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    # skip P and S
-    for _ in range(2):
-        length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
-        idx += 5 + length
+    idx += 17  # skip P
+    length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
+    idx += 5 + length
     assert data[idx : idx + 1] == b'D'
     dlen = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     payload = data[idx + 5 : idx + 5 + dlen]

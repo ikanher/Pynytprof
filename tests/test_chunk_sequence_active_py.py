@@ -20,7 +20,11 @@ def test_active_writer_chunk_sequence(tmp_path, monkeypatch):
     tags = []
     off = idx
     while off < len(data):
-        tags.append(data[off : off + 1])
+        tok = data[off : off + 1]
+        tags.append(tok)
+        if tok == b"P":
+            off += 17
+            continue
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length
     assert tags == [b"P", b"S", b"D", b"C", b"E"], f"Got {tags!r}"
