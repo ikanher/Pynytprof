@@ -75,6 +75,7 @@ class Writer:
         start_ns: int | None = None,
         ticks_per_sec: int = 10_000_000,
         tracer=None,
+        script_path: str | None = None,
     ):
         self._path = Path(path)
         self._fh = None
@@ -83,6 +84,7 @@ class Writer:
         self._start_ns = self.start_time
         self.tracer = tracer
         self.writer = self
+        self.script_path = str(Path(script_path or sys.argv[0]).resolve())
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
         self._buf: dict[bytes, bytearray] = {
@@ -146,6 +148,21 @@ class Writer:
         payload = struct.pack("<QII", start_us, os.getpid(), os.getppid())
         self._fh.write(b"P" + len(payload).to_bytes(4, "little") + payload)
         self.header_size = len(banner) + 1 + 4 + len(payload)
+
+        # emit file info for the main script immediately after the P chunk
+        st = os.stat(self.script_path)
+        flags = 0x10  # HAS_SRC
+        f_payload = struct.pack(
+            "<IIII", 0, flags, st.st_size, int(st.st_mtime)
+        ) + self.script_path.encode() + b"\0"
+        self._fh.write(b"F" + struct.pack("<I", len(f_payload)) + f_payload)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            sha = hashlib.sha256(f_payload).hexdigest()
+            print(
+                f"DEBUG: F-chunk offset={self.header_size:#x} len={len(f_payload)} sha256={sha}",
+                file=sys.stderr,
+            )
+        self.header_size += 1 + 4 + len(f_payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(

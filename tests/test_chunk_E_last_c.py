@@ -16,4 +16,4 @@ def test_c_writer_emits_E_last(tmp_path, monkeypatch):
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     assert tokens[-1] == b'E'
-    assert tokens == [b'P', b'S', b'D', b'C', b'E']
+    assert tokens == [b'P', b'F', b'S', b'D', b'C', b'E']
