@@ -157,10 +157,19 @@ class Writer:
                 f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
                 file=sys.stderr,
             )
-            self._debug_chunk_info(b"P", payload, self.header_size)
         length_bytes = struct.pack("<I", len(payload))
         self._fh.write(b"P" + length_bytes + payload)
         self.header_size = len(banner) + 1 + 4 + len(payload)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            self._fh.flush()
+            with open(self._fh.name, "rb") as f:
+                data = f.read()
+            banner_len = len(banner)
+            print(
+                "DEBUG: after header, first5=",
+                data[banner_len : banner_len + 5].hex(),
+                file=sys.stderr,
+            )
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
