@@ -13,7 +13,7 @@ def test_py_writer_chunks(tmp_path):
         },
     )
     data = out.read_bytes()
-    end = data.index(b"\n\n") + 2
+    end = data.index(b"\nP") + 1
     chunks = data[end:]
     tokens = []
     off = 0

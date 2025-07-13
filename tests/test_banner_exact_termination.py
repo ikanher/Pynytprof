@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-def test_banner_ends_with_two_newlines(tmp_path):
+def test_banner_ends_with_single_newline(tmp_path):
     out = tmp_path / 'nytprof.out'
     env = {
         **os.environ,
@@ -16,7 +16,7 @@ def test_banner_ends_with_two_newlines(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    idx = data.find(b"\n\n")
-    assert idx != -1, "Did not find \\n\\n"
-    next_bytes = data[idx:idx+3]
-    assert next_bytes == b"\n\nP", f"Expected exactly '\\n\\nP', got {next_bytes}"
+    idx = data.find(b"\nP")
+    assert idx != -1, "Did not find \\nP"
+    next_bytes = data[idx:idx+2]
+    assert next_bytes == b"\nP", f"Expected exactly '\\nP', got {next_bytes}"

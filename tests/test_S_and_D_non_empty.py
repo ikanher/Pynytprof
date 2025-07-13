@@ -13,7 +13,7 @@ def test_S_and_D_non_empty(tmp_path, monkeypatch):
         env=env,
     )
     data = out.read_bytes()
-    idx = data.index(b"\n\n") + 2
+    idx = data.index(b"\nP") + 1
     seen = {}
     off = idx
     while off < len(data):
