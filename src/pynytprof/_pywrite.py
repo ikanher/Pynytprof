@@ -157,6 +157,7 @@ class Writer:
                 f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
                 file=sys.stderr,
             )
+            self._debug_chunk_info(b"P", payload, self.header_size)
         self._fh.write(b"P" + payload)
         self.header_size = len(banner) + 1 + len(payload)
 
@@ -286,8 +287,16 @@ class Writer:
         print("DEBUG: TLV parse check on", fpath)
         with open(fpath, "rb") as fh:
             data = fh.read()
-        i = self.header_size
+        banner_len = self.header_size - 17  # account for P record (17 bytes)
+        i = banner_len
         chunk = 1
+        if data[i:i+1] == b"P":
+            length = 16
+            print(
+                f"DEBUG: chunk {chunk} tag={data[i:i+1]!r} offset=0x{i:x} len={length}"
+            )
+            i += 1 + length
+            chunk += 1
         while i < len(data):
             tag = data[i : i + 1]
             if tag == b"":
