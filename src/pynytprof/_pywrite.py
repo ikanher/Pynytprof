@@ -133,15 +133,20 @@ class Writer:
 
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
+        # banner is guaranteed to end with a single LF
+        assert banner.endswith(b"\n")
         self._fh.write(banner)
+
         import os, struct, time
+
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: banner_end={banner[-9:]}", file=sys.stderr)
+
         start_us = int(time.time() * 1e6)
-        payload = struct.pack('<QII', start_us, os.getpid(), os.getppid())
-        length = struct.pack('<I', len(payload))
-        self._fh.write(b'P' + length + payload)
+        payload = struct.pack("<QII", start_us, os.getpid(), os.getppid())
+        self._fh.write(b"P" + len(payload).to_bytes(4, "little") + payload)
         self.header_size = len(banner) + 1 + 4 + len(payload)
+
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
                 f"DEBUG: header_size={self.header_size} first_token=P",
