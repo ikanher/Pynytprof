@@ -119,8 +119,7 @@ static void emit_header(FILE *fp) {
     put_u32le(payload + 4, (uint32_t)getppid());
     put_double_le(payload + 8, t);
     fputc('P', fp);
-    uint32_t len = 16;
-    fwrite(&len, 4, 1, fp);
+    fwrite("\x10\x00\x00\x00", 1, 4, fp);
     fwrite(payload, 1, 16, fp);
 
 }
