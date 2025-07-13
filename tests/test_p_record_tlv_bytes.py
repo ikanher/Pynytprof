@@ -13,7 +13,7 @@ def test_p_record_tlv_bytes(tmp_path):
     data = out.read_bytes()
     i = data.index(b"\nP") + 1
     assert data[i:i+1] == b"P"
-    payload = data[i+1:i+17]
+    payload = data[i+5:i+21]
     pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == os.getpid()
     assert ppid == os.getppid()
