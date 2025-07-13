@@ -139,6 +139,7 @@ class Writer:
         # banner is guaranteed to end with a single LF
         assert banner.endswith(b"\n")
         self._fh.write(banner)
+        self.header_size = len(banner)
 
         import struct, time, os
 
@@ -148,14 +149,17 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
-        assert len(payload) == 16, f"P-payload len {len(payload)} != 16"
+        import struct, binascii
+        payload = struct.pack("<IId", pid, ppid, ts)
+        assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
         if os.getenv("PYNYTPROF_DEBUG"):
-            import binascii
-            print(f"DEBUG: P-hex={binascii.hexlify(payload)}", file=sys.stderr)
-        self._fh.write(b"P" + b"\x10\x00\x00\x00" + payload)
-        self.header_size = len(banner)
-        self.header_size += 1 + 4 + len(payload)  # == 21
+            print(
+                f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
+                file=sys.stderr,
+            )
+        length = struct.pack("<I", len(payload))
+        self._fh.write(b"P" + length + payload)
+        self.header_size += 1 + 4 + len(payload)
 
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: P-len=16 pid={pid} ppid={ppid} ts={ts:.6f}", file=sys.stderr)
@@ -327,12 +331,16 @@ def write(
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
         f.write(banner)
-        import struct, time, os
+        import struct, time, os, binascii
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack('<II', pid, ppid) + struct.pack('<d', ts)
-        f.write(b'P' + struct.pack('<I', 16) + payload)
+        payload = struct.pack('<IId', pid, ppid, ts)
+        assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
+        if os.getenv('PYNYTPROF_DEBUG'):
+            print(f"DEBUG: P-payload raw={binascii.hexlify(payload)}")
+        length = struct.pack('<I', len(payload))
+        f.write(b'P' + length + payload)
         if not files:
             script = Path(sys.argv[0]).resolve()
             st = script.stat()
