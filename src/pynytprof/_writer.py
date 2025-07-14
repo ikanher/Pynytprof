@@ -5,7 +5,7 @@ import struct
 import time
 from pathlib import Path
 
-from ._pywrite import _make_ascii_header, write as _py_write, Writer as _PyWriter
+from ._pywrite import _make_ascii_header, write as _py_write, Writer as _PyWriter, _perl_nv_size
 
 
 class Writer:
@@ -25,6 +25,7 @@ class Writer:
         self._start_ns = self.start_time
         self.tracer = tracer
         self.writer = self
+        self._nv_size = _perl_nv_size()
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._buf: dict[bytes, bytearray] = {
             b"F": bytearray(),
@@ -98,7 +99,7 @@ class Writer:
             summary = ", ".join(f"{t.decode()}={len(buf)}" for t, buf in self._buf.items())
             print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
-        hdr = _make_ascii_header(self._start_ns)
+        hdr = _make_ascii_header(self._start_ns, self._nv_size)
         data = hdr
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)

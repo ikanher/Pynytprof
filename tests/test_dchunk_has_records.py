@@ -1,5 +1,6 @@
 import os, subprocess, sys
 from pathlib import Path
+from pynytprof._pywrite import _perl_nv_size
 
 
 def test_D_chunk_contains_records(tmp_path):
@@ -15,7 +16,7 @@ def test_D_chunk_contains_records(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    idx += 21
+    idx += 5 + 8 + _perl_nv_size()
     length = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + length
     assert data[idx:idx+1]==b'D'

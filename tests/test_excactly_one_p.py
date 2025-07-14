@@ -1,4 +1,5 @@
 import subprocess, sys, struct, os, tempfile, pathlib
+from pynytprof._pywrite import _perl_nv_size
 
 def test_exactly_one_p_record(tmp_path):
     out = tmp_path/"nytprof.out"
@@ -23,4 +24,4 @@ def test_exactly_one_p_record(tmp_path):
     pid_bytes = data[idx+5:idx+9]
     assert pid_bytes == p.pid.to_bytes(4, 'little')
     s_off = data.index(b'S')
-    assert s_off == idx + 21
+    assert s_off == idx + 5 + 8 + _perl_nv_size()

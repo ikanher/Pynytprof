@@ -10,18 +10,31 @@ import datetime
 from email.utils import format_datetime
 from importlib import resources
 import re
+import subprocess
+import ctypes
 
 try:  # Python 3.9+
     _version_text = resources.files(__package__).joinpath("nytp_version.h").read_text()
 except AttributeError:  # pragma: no cover - fallback for Python < 3.9
     _version_text = resources.read_text(__package__, "nytp_version.h")
+
 _major_match = re.search(r"NYTPROF_MAJOR\s+(\d+)", _version_text)
 _minor_match = re.search(r"NYTPROF_MINOR\s+(\d+)", _version_text)
 NYTPROF_MAJOR = int(_major_match.group(1)) if _major_match else 5
 NYTPROF_MINOR = int(_minor_match.group(1)) if _minor_match else 0
 
 
-def _make_ascii_header(start_ns: int) -> bytes:
+def _perl_nv_size() -> int:
+    try:
+        out = subprocess.check_output(
+            ["perl", "-MConfig", "-e", "print $Config{nvsize}"],
+            text=True,
+        )
+        return int(out.strip() or 8)
+    except Exception:
+        return 8
+
+def _make_ascii_header(start_ns: int, nv_size: int) -> bytes:
     now = format_datetime(datetime.datetime.now(datetime.timezone.utc)).lower()
     try:
         hz = os.sysconf("SC_CLK_TCK")  # type: ignore[arg-type]
@@ -33,7 +46,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         f":basetime={int(start_ns // 1_000_000_000)}",
         ":application=-e",
         f":perl_version={sys.version.split()[0]}",
-        f":nv_size={struct.calcsize('d')}",
+        f":nv_size={nv_size}",
         ":clock_mod=cpu",
         ":ticks_per_sec=10000000",
         f":osname={platform.system().lower()}",
@@ -83,6 +96,7 @@ class Writer:
         self.tracer = tracer
         self.writer = self
         self.script_path = str(Path(script_path or sys.argv[0]).resolve())
+        self._nv_size = _perl_nv_size()
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
         self._payloads: dict[bytes, bytearray] = {
@@ -93,15 +107,24 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
-    def _write_raw_P(self, payload: bytes) -> None:
+    def _write_raw_P(self, pid: int, ppid: int) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
+        tv = time.time()
+        if self._nv_size == 8:
+            nv_bytes = struct.pack("<d", tv)
+        elif self._nv_size == 16:
+            nv = ctypes.c_longdouble(tv)
+            nv_bytes = ctypes.string_at(ctypes.byref(nv), 16)
+        else:
+            raise ValueError(f"Unsupported NV size {self._nv_size}")
+        payload = struct.pack("<II", pid, ppid) + nv_bytes
         self._fh.write(b"P")
         self._fh.write(struct.pack("<I", len(payload)))
         self._fh.write(payload)
 
     def _write_header(self) -> None:
-        banner = _make_ascii_header(self._start_ns)
+        banner = _make_ascii_header(self._start_ns, self._nv_size)
         assert banner.endswith(b"\n")
         if os.getenv("PYNYTPROF_DEBUG"):
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
@@ -112,8 +135,14 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         start_time_s = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", start_time_s)
-        assert len(payload) == 16
+        if self._nv_size == 8:
+            nv_bytes = struct.pack("<d", start_time_s)
+        elif self._nv_size == 16:
+            nv = ctypes.c_longdouble(start_time_s)
+            nv_bytes = ctypes.string_at(ctypes.byref(nv), 16)
+        else:
+            raise ValueError(f"Unsupported NV size {self._nv_size}")
+        payload = struct.pack("<II", pid, ppid) + nv_bytes
         banner_len = len(banner)
         self.header_size = banner_len + 1 + 4 + len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -124,10 +153,10 @@ class Writer:
                 f"DEBUG: P-offset=0x{p_offset:x} S-offset expected=0x{s_offset:x}",
                 file=sys.stderr,
             )
-        self._write_raw_P(payload)
+        self._write_raw_P(pid, ppid)
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
-                f"DEBUG: wrote raw P record (21 B) pid={pid} ppid={ppid}",
+                f"DEBUG: wrote raw P record ({len(payload)+5} B) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
@@ -238,15 +267,22 @@ class Writer:
 
 def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec: int) -> None:
     path = Path(out_path)
+    nv_size = _perl_nv_size()
     with path.open("wb") as f:
-        banner = _make_ascii_header(start_ns)
+        banner = _make_ascii_header(start_ns, nv_size)
         f.write(banner)
 
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
-        assert len(payload) == 16
+        if nv_size == 8:
+            nv_bytes = struct.pack("<d", ts)
+        elif nv_size == 16:
+            nv = ctypes.c_longdouble(ts)
+            nv_bytes = ctypes.string_at(ctypes.byref(nv), 16)
+        else:
+            raise ValueError(f"Unsupported NV size {nv_size}")
+        payload = struct.pack("<II", pid, ppid) + nv_bytes
         f.write(b"P")
         f.write(struct.pack("<I", len(payload)))
         f.write(payload)

@@ -1,5 +1,6 @@
 import os, subprocess, sys
 from pathlib import Path
+from pynytprof._pywrite import _perl_nv_size
 
 
 def test_debug_chunk_summary(tmp_path):
@@ -15,4 +16,5 @@ def test_debug_chunk_summary(tmp_path):
         [sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/example_script.py'],
         env=env, stderr=subprocess.PIPE, text=True
     )
-    assert 'DEBUG: wrote raw P record (21 B)' in proc.stderr
+    expected = f"DEBUG: wrote raw P record ({5 + 8 + _perl_nv_size()} B)"
+    assert expected in proc.stderr

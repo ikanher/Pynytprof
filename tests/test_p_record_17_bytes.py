@@ -1,6 +1,7 @@
 import os, subprocess, sys
 from pathlib import Path
 import pytest
+from pynytprof._pywrite import _perl_nv_size
 
 
 def test_p_record_is_21_bytes(tmp_path):
@@ -16,4 +17,4 @@ def test_p_record_is_21_bytes(tmp_path):
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
     assert data[idx:idx+1] == b"P"
-    assert data[idx + 21 : idx + 22] == b"S"
+    assert data[idx + 5 + 8 + _perl_nv_size() : idx + 5 + 8 + _perl_nv_size() + 1] == b"S"

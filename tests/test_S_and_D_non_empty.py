@@ -1,5 +1,6 @@
 import os, subprocess, sys
 from pathlib import Path
+from pynytprof._pywrite import _perl_nv_size
 
 def test_S_and_D_non_empty(tmp_path, monkeypatch):
     out = tmp_path/'nytprof.out'
@@ -19,8 +20,8 @@ def test_S_and_D_non_empty(tmp_path, monkeypatch):
     while off < len(data):
         tag = data[off:off+1]
         if tag == b"P":
-            off += 21
-            seen[tag] = 16
+            off += 5 + 8 + _perl_nv_size()
+            seen[tag] = 8 + _perl_nv_size()
             continue
         length = int.from_bytes(data[off+1:off+5], "little")
         seen[tag] = length

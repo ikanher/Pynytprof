@@ -1,5 +1,6 @@
 import os, subprocess, sys
 from pathlib import Path
+from pynytprof._pywrite import _perl_nv_size
 
 
 def test_S_payload_free_of_newlines(tmp_path):
@@ -16,7 +17,7 @@ def test_S_payload_free_of_newlines(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    idx += 21  # skip P
+    idx += 5 + 8 + _perl_nv_size()  # skip P
     # expect S tag
     assert data[idx:idx+1]==b'S'
     slen = int.from_bytes(data[idx+1:idx+5],'little')

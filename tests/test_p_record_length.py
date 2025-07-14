@@ -1,6 +1,7 @@
 import os, subprocess, sys
 from pathlib import Path
 import pytest
+from pynytprof._pywrite import _perl_nv_size
 
 def test_p_record_length(tmp_path):
     out = tmp_path / "nytprof.out"
@@ -21,5 +22,6 @@ def test_p_record_length(tmp_path):
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
     assert data[idx:idx+1] == b"P"
-    assert data[idx+21:idx+22] in (b"S", b"C")
+    plen = 5 + 8 + _perl_nv_size()
+    assert data[idx + plen : idx + plen + 1] in (b"S", b"C")
 
