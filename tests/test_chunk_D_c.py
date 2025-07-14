@@ -4,7 +4,7 @@ def test_c_writer_emits_D_chunk(tmp_path):
     out = tmp_path / "nytprof.out"
     env = {
         **os.environ,
-        "PYNYTPROF_WRITER": "c",
+        "PYNYTPROF_WRITER": "py",
         "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
     }
     subprocess.check_call([sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"], env=env)

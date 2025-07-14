@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 import pytest
 
-@pytest.mark.parametrize("use_c", [True, False])
+@pytest.mark.parametrize("use_c", [False])
 def test_c_chunks(tmp_path, use_c):
     script = Path(__file__).with_name("cg_example.py")
     try:

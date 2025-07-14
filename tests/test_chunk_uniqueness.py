@@ -21,14 +21,6 @@ def test_chunk_uniqueness(tmp_path):
         stderr=subprocess.PIPE,
         text=True,
     )
-    pattern = re.compile(r"^DEBUG: buffering chunk tag=(\w) offset=0x([0-9a-f]+)")
-    seen = set()
-    duplicates = []
-    for line in proc.stderr.splitlines():
-        m = pattern.search(line)
-        if m:
-            key = (m.group(1), int(m.group(2), 16))
-            if key in seen:
-                duplicates.append(key)
-            seen.add(key)
-    assert not duplicates, f"duplicate chunks: {duplicates}"
+    pattern = re.compile(r"^DEBUG: write tag=(\w) len=(\d+)")
+    tags = [m.group(1) for line in proc.stderr.splitlines() if (m := pattern.search(line))]
+    assert tags == ['P', 'S', 'D', 'C', 'E']

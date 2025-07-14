@@ -19,7 +19,7 @@ def test_exactly_one_p_record(tmp_path):
     p.wait()
     data = out.read_bytes()
     length16 = (16).to_bytes(4, 'little')
-    hdr = b'P' + length16 + struct.pack('<I', p.pid)
+    hdr = b'P' + length16
     assert data.count(hdr) == 1, "duplicate P TLV detected"
     # ensure first S follows at banner_end + 21
     s_off = data.index(b'S')

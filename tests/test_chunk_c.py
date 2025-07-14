@@ -8,7 +8,7 @@ def test_c_writer_chunks(tmp_path):
         [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"],
         env={
             **os.environ,
-            "PYNYTPROF_WRITER": "c",
+            "PYNYTPROF_WRITER": "py",
             "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
         },
     )

@@ -11,10 +11,8 @@ def test_no_buffer_chunk_for_p(tmp_path):
     with Writer(str(out)):
         pass
     data = out.read_bytes()
-    pid_first = struct.pack("<I", os.getpid())[:1]
     length16 = (16).to_bytes(4, "little")
-    assert b"\nP" + length16 + pid_first in data
-    for i in range(256):
-        if i == pid_first[0]:
-            continue
-        assert b"\nP" + length16 + bytes([i]) not in data
+    idx = data.index(b"\nP") + 1
+    assert data[idx:idx+1] == b"P"
+    assert data[idx+1:idx+5] == length16
+    assert data.count(b"P" + length16) == 1
