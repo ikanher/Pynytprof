@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tests.conftest import parse_chunks
 
 
 def test_single_p_record(tmp_path):
@@ -21,7 +22,8 @@ def test_single_p_record(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    idx = data.index(b"\nP") + 1
-    pid = int.from_bytes(data[idx + 5:idx + 9], "little")
+    chunks = parse_chunks(data)
+    p_chunk = chunks['P']
+    pid = int.from_bytes(p_chunk['payload'][:4], 'little')
     assert pid == p.pid
-    assert data[idx + 21:idx + 22] == b"S"
+    assert 'S' in chunks

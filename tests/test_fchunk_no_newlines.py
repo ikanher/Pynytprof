@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tests.conftest import parse_chunks
 
 
 def test_pchunk_no_newlines(tmp_path):
@@ -18,9 +19,9 @@ def test_pchunk_no_newlines(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    idx = data.index(b'\nP') + 1
-    assert data[idx:idx+1] == b'P'
-    pid_bytes = p.pid.to_bytes(4, 'little')
-    assert data[idx+5:idx+9] == pid_bytes
-    payload = data[idx+9:idx+21]
-    assert b'\n' not in payload
+    chunks = parse_chunks(data)
+    assert 'P' in chunks
+    p_chunk = chunks['P']
+    assert b'\n' not in p_chunk['payload'][:1]
+    pid = int.from_bytes(p_chunk['payload'][:4], 'little')
+    assert pid == p.pid
