@@ -68,14 +68,15 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 class Writer:
     def __init__(
         self,
-        path: str,
+        path: str | None = None,
         start_ns: int | None = None,
         ticks_per_sec: int = 10_000_000,
         tracer=None,
         script_path: str | None = None,
+        fp=None,
     ) -> None:
-        self._path = Path(path)
-        self._fh = None
+        self._path = Path(path) if path is not None else None
+        self._fh = fp
         self.start_time = time.time_ns() if start_ns is None else start_ns
         self.ticks_per_sec = ticks_per_sec
         self._start_ns = self.start_time
@@ -92,6 +93,13 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
+    def _write_raw_P(self, payload: bytes) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        self._fh.write(b"P")
+        self._fh.write(struct.pack("<I", len(payload)))
+        self._fh.write(payload)
+
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
         assert banner.endswith(b"\n")
@@ -107,19 +115,19 @@ class Writer:
         payload = struct.pack("<II", pid, ppid) + struct.pack("<d", start_time_s)
         assert len(payload) == 16
         banner_len = len(banner)
-        self.header_size = banner_len + 1 + len(payload)
+        self.header_size = banner_len + 1 + 4 + len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             p_offset = banner_len
-            s_offset = p_offset + 17
+            s_offset = p_offset + 1 + 4 + len(payload)
             print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
             print(
                 f"DEBUG: P-offset=0x{p_offset:x} S-offset expected=0x{s_offset:x}",
                 file=sys.stderr,
             )
-        self._fh.write(b"P" + payload)
+        self._write_raw_P(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
-                f"DEBUG: wrote raw P record (17 B) pid={pid} ppid={ppid}",
+                f"DEBUG: wrote raw P record (21 B) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
@@ -172,7 +180,10 @@ class Writer:
             pass
 
     def __enter__(self):
-        self._fh = open(self._path, "wb")
+        if self._fh is None:
+            if self._path is None:
+                raise ValueError("no output path specified")
+            self._fh = open(self._path, "wb")
         self._write_header()
         return self
 
@@ -236,7 +247,9 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         ts = time.time()
         payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
         assert len(payload) == 16
-        f.write(b"P" + payload)
+        f.write(b"P")
+        f.write(struct.pack("<I", len(payload)))
+        f.write(payload)
 
         s_payload = b"".join(
             struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)

@@ -22,6 +22,6 @@ def test_single_p_record(tmp_path):
     p.wait()
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
-    pid = int.from_bytes(data[idx + 1:idx + 5], "little")
+    pid = int.from_bytes(data[idx + 5:idx + 9], "little")
     assert pid == p.pid
-    assert data[idx + 17:idx + 18] == b"S"
+    assert data[idx + 21:idx + 22] == b"S"

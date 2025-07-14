@@ -13,7 +13,7 @@ def test_no_newline_bytes_after_header(tmp_path):
         env=env
     )
     data = out.read_bytes()
-    split = data.index(b'\nP') + 1 + 1 + 4 + 4 + 8
+    split = data.index(b'\nP') + 1 + 1 + 4 + 4 + 4 + 8
     tail = data[split:]
     # Assert no 0x0A anywhere in the binary section
     pos = tail.find(b'\n')
