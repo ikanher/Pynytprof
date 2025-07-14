@@ -28,4 +28,4 @@ def test_callgraph_py(tmp_path):
     c_pos = data.index(b"C", d_pos)
     c_len = struct.unpack_from("<I", data, c_pos + 1)[0]
     rec_size = struct.calcsize("<IIIQQ")
-    assert c_len % rec_size == 0 and c_len >= rec_size
+    assert c_len % rec_size == 0

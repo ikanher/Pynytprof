@@ -84,12 +84,15 @@ class _CallGraph:
     def serialize(self) -> bytes:
         if not self._edges:
             return b""
-        st = struct.Struct("<IIIQ")
+        st = struct.Struct("<IIIQQ")
         payload = bytearray(len(self._edges) * st.size)
         off = 0
         for (caller, callee), (count, dur) in self._edges.items():
-            st.pack_into(payload, off, caller, callee, count, dur)
+            ticks = dur
+            st.pack_into(payload, off, caller, callee, count, ticks, ticks)
             off += st.size
+        length = len(payload)
+        assert length % st.size == 0
         return bytes(payload)
 
     def __len__(self) -> int:  # pragma: no cover - simple
@@ -211,13 +214,18 @@ class Writer:
                 payload = self._table.serialize()
                 if os.getenv("PYNYTPROF_DEBUG"):
                     import sys
-                    print(f"DEBUG: emitting chunk tag={TAG_T.decode()} len={len(payload)}", file=sys.stderr)
+
+                    print(
+                        f"DEBUG: emitting chunk tag={TAG_T.decode()} len={len(payload)}",
+                        file=sys.stderr,
+                    )
                 self._write_chunk(TAG_T, payload)
                 self._table_written = True
             if self._file_records:
                 payload = b"".join(self._file_records)
                 if os.getenv("PYNYTPROF_DEBUG"):
                     import sys
+
                     print(f"DEBUG: emitting chunk tag=F len={len(payload)}", file=sys.stderr)
                 self._write_chunk(b"F", payload)
                 self._file_records.clear()
@@ -227,12 +235,14 @@ class Writer:
                 payload = self._sub_table.serialize()
                 if os.getenv("PYNYTPROF_DEBUG"):
                     import sys
+
                     print(f"DEBUG: emitting chunk tag=S len={len(payload)}", file=sys.stderr)
                 self._write_chunk(b"S", payload)
             if len(self._callgraph):
                 payload = self._callgraph.serialize()
                 if os.getenv("PYNYTPROF_DEBUG"):
                     import sys
+
                     print(f"DEBUG: emitting chunk tag=C len={len(payload)}", file=sys.stderr)
                 self._write_chunk(b"C", payload)
             if self.stats:
@@ -242,17 +252,20 @@ class Writer:
                 )
                 if os.getenv("PYNYTPROF_DEBUG"):
                     import sys
+
                     print(f"DEBUG: emitting chunk tag=A len={len(payload)}", file=sys.stderr)
                 self._write_chunk(b"A", payload)
             end_ns = time.time_ns() - self._start_ns
             payload = struct.pack("<Q", end_ns)
             if os.getenv("PYNYTPROF_DEBUG"):
                 import sys
+
                 print(f"DEBUG: emitting chunk tag=E len={len(payload)}", file=sys.stderr)
             self._write_chunk(b"E", payload)
             self._fh.close()
             if os.getenv("PYNYTPROF_DEBUG"):
                 import sys
+
                 print("DEBUG: all chunks emitted", file=sys.stderr)
         self._fh = None
 

@@ -3,6 +3,7 @@ import struct
 import zlib
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pynytprof.writer import Writer
@@ -24,15 +25,15 @@ def test_callgraph_chunk(tmp_path):
         off = hdr_end
         found = False
         while off < mm.size():
-            tag = mm[off:off+1]
-            length = struct.unpack_from("<I", mm, off+1)[0]
+            tag = mm[off : off + 1]
+            length = struct.unpack_from("<I", mm, off + 1)[0]
             off += 5
-            payload = mm[off:off+length]
+            payload = mm[off : off + length]
             off += length
             if tag == b"C":
                 payload = zlib.decompress(payload)
-                vals = struct.unpack_from("<III", payload, 0)
-                assert vals == (caller, callee, 3)
+                vals = struct.unpack_from("<IIIQQ", payload, 0)
+                assert vals[:3] == (caller, callee, 3)
                 found = True
                 break
         mm.close()

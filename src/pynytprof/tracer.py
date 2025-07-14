@@ -16,7 +16,7 @@ from types import FrameType
 from typing import Any, Dict, List
 import struct
 
-from ._pywrite import Writer as PyWriter
+from ._writer import WRITER as Writer
 
 try:
     from ._version import version as __version__
@@ -31,8 +31,6 @@ warnings.filterwarnings(
 )
 
 _force_py = bool(os.environ.get("PYNTP_FORCE_PY"))  # preserved for _ctrace logic
-
-Writer = PyWriter
 
 _ctrace = None
 if not _force_py:

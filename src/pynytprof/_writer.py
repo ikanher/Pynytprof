@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import os
-import warnings
 import struct
 import time
 from pathlib import Path
 
-import importlib.metadata
-
-from ._pywrite import _make_ascii_header, write as _py_write
-
-_version = importlib.metadata.version("pynytprof")
+from ._pywrite import _make_ascii_header, write as _py_write, Writer as _PyWriter
 
 
 class Writer:
@@ -39,11 +34,13 @@ class Writer:
         }
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
+
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
     def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
+
             print(
                 f"DEBUG: buffering chunk tag={tag.decode()} len={len(payload)}",
                 file=sys.stderr,
@@ -97,9 +94,8 @@ class Writer:
 
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
-            summary = ", ".join(
-                f"{t.decode()}={len(buf)}" for t, buf in self._buf.items()
-            )
+
+            summary = ", ".join(f"{t.decode()}={len(buf)}" for t, buf in self._buf.items())
             print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
         hdr = _make_ascii_header(self._start_ns)
@@ -110,7 +106,9 @@ class Writer:
         for tag in [b"F", b"S", b"D", b"C", b"E"]:
             payload = self._buf.get(tag, b"") if tag != b"E" else b""
             if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr)
+                print(
+                    f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr
+                )
             data = tag
             if os.getenv("PYNYTPROF_DEBUG"):
                 print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
@@ -126,30 +124,23 @@ class Writer:
 
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
+
             print("DEBUG: all chunks emitted", file=sys.stderr)
 
         self._fh.close()
         self._fh = None
 
 
-_mode = os.environ.get("PYNYTPROF_WRITER", "auto")
+try:
+    from . import _cwrite  # type: ignore
+except Exception:  # pragma: no cover - optional extension
+    _cwrite = None
 
-if _mode == "c":
-    try:
-        from . import _cwrite as _impl
-    except Exception:
-        _impl = None
-    if _impl is not None and getattr(_impl, "__build__", None) == _version:
-        write = _impl.write
-        Writer = getattr(_impl, "Writer", Writer)
-    else:
-        if _impl is not None and getattr(_impl, "__build__", None) != _version:
-            warnings.warn(
-                "stale _cwrite extension; falling back to pure-Python writer",
-                RuntimeWarning,
-            )
-        write = _py_write
-else:  # "py" or auto fallback
+if os.getenv("PYNYTPROF_WRITER") == "c" and _cwrite is not None:
+    WRITER = _cwrite.Writer
+    write = _cwrite.write  # type: ignore[attr-defined]
+else:
+    WRITER = _PyWriter
     write = _py_write
 
-__all__ = ["write", "Writer"]
+__all__ = ["write", "Writer", "WRITER"]
