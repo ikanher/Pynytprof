@@ -94,7 +94,6 @@ class Writer:
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
         self.header_size = len(_make_ascii_header(self._start_ns))
-        self.header_size += 1 + 4 + 16  # account for P record with length field
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
