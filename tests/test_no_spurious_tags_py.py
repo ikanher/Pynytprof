@@ -29,9 +29,10 @@ def test_no_spurious_tags(tmp_path, monkeypatch):
         tag = data[off : off + 1]
         tags.append(tag)
         if tag == b"P":
-            off += 1 + 4 + 4 + 4 + 8
+            off += 1 + 4 + 4 + 8
             continue
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length
 
     assert tags == [b"P", b"S", b"D", b"C", b"E"], f"Found spurious tags: {tags!r}"
+

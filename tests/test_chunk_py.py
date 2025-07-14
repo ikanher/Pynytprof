@@ -21,10 +21,11 @@ def test_py_writer_chunks(tmp_path):
         tok = chunks[off:off+1]
         tokens.append(tok)
         if tok == b"P":
-            off += 1 + 4 + 4 + 4 + 8
+            off += 1 + 4 + 4 + 8
             continue
         length = int.from_bytes(chunks[off+1:off+5], "little")
         off += 5 + length
     assert tokens == [b"P", b"S", b"D", b"C", b"E"]
     assert b"A" not in tokens
     assert data.endswith(b"E\x00\x00\x00\x00")
+

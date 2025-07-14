@@ -21,7 +21,7 @@ def test_callgraph_py(tmp_path):
     )
     data = out.read_bytes()
     start = get_chunk_start(data)
-    off = start + 21
+    off = start + 17
     d_pos = data.index(b"D", off)
     d_len = struct.unpack_from("<I", data, d_pos + 1)[0]
     assert d_len >= 1
@@ -29,3 +29,4 @@ def test_callgraph_py(tmp_path):
     c_len = struct.unpack_from("<I", data, c_pos + 1)[0]
     rec_size = struct.calcsize("<IIIQQ")
     assert c_len % rec_size == 0
+
