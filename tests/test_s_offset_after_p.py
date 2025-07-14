@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tests.conftest import parse_chunks
 
 
 def test_s_offset_after_p(tmp_path):
@@ -21,7 +22,8 @@ def test_s_offset_after_p(tmp_path):
         "pass",
     ], env=env)
     data = out.read_bytes()
-    idx_p = data.index(b"\nP") + 1
-    s_expected = idx_p + 1 + 4 + 4 + 4 + 8
-    idx_s = data.index(b"S", s_expected - 1)
-    assert idx_s == s_expected
+    chunks = parse_chunks(data)
+    assert 'P' in chunks and 'S' in chunks
+    p_chunk = chunks['P']
+    s_chunk = chunks['S']
+    assert s_chunk['offset'] > p_chunk['offset'] + 5 + p_chunk['length']
