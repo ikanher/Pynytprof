@@ -22,6 +22,6 @@ def test_s_offset_after_p(tmp_path):
     ], env=env)
     data = out.read_bytes()
     idx_p = data.index(b"\nP") + 1
-    s_expected = idx_p + 1 + 16
+    s_expected = idx_p + 1 + 4 + 16
     idx_s = data.index(b"S", s_expected - 1)
     assert idx_s == s_expected

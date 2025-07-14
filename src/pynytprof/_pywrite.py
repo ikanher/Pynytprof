@@ -146,7 +146,8 @@ class Writer:
 
         pid = os.getpid()
         ppid = os.getppid()
-        payload = struct.pack("<IId", pid, ppid, time.time())
+        ts = time.time()
+        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
         import binascii
         assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -154,12 +155,13 @@ class Writer:
                 f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
                 file=sys.stderr,
             )
-        self._fh.write(b"P" + payload)
-        self.header_size = len(banner) + 1 + 16
+        length16 = (16).to_bytes(4, "little")
+        self._fh.write(b"P" + length16 + payload)
+        self.header_size = len(banner) + 1 + 4 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
             p_off = len(banner)
             print(
-                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+17:#x}",
+                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+21:#x}",
                 file=sys.stderr,
             )
             self._fh.flush()
@@ -171,7 +173,7 @@ class Writer:
                 file=sys.stderr,
             )
             print(
-                f"DEBUG: wrote P record (17 bytes) pid={pid} ppid={ppid}",
+                f"DEBUG: wrote P TLV (21 B) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
@@ -298,15 +300,15 @@ class Writer:
         print("DEBUG: TLV parse check on", fpath)
         with open(fpath, "rb") as fh:
             data = fh.read()
-        banner_len = self.header_size - 17  # account for P record (17 bytes)
+        banner_len = self.header_size - 21  # account for P TLV (21 bytes)
         i = banner_len
         chunk = 1
         if data[i:i+1] == b"P":
-            length = 16
+            length = int.from_bytes(data[i + 1 : i + 5], "little")
             print(
                 f"DEBUG: chunk {chunk} tag={data[i:i+1]!r} offset=0x{i:x} len={length}"
             )
-            i += 1 + length
+            i += 5 + length
             chunk += 1
         while i < len(data):
             tag = data[i : i + 1]

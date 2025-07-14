@@ -23,7 +23,7 @@ def test_pywrite_exact_sequence(tmp_path, monkeypatch):
         tag = data[off:off+1]
         tags.append(tag)
         if tag == b'P':
-            off += 1 + 16
+            off += 1 + 4 + 16
             seen[tag] = seen.get(tag, 0) + 1
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
