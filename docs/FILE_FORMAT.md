@@ -36,7 +36,7 @@ NYTProf <major> <minor>\n
 Most records are **TLV** → `tag:u8` + `len:u32(le)` + `payload`.
 
 **Sequence**
-1. `P`  process-start (21 bytes total)
+1. `P`  process-start (17 bytes total)
 2. `S`  statement samples
 3. `D`  sub-descriptors
 4. `C`  call-graph edges
@@ -44,7 +44,7 @@ Most records are **TLV** → `tag:u8` + `len:u32(le)` + `payload`.
 
 | Tag | Size field | Payload struct (little-endian)                                      | Notes                                               |
 |-----|------------|---------------------------------------------------------------------|-----------------------------------------------------|
-| `P` | yes | `u32 pid, u32 ppid, double start_time_sec` | TLV: tag `P` (0x50) + `u32 length_le = 16` + payload |
+| `P` | no  | `u32 pid, u32 ppid, double start_time_sec` | tag `P` (0x50) immediately followed by 16-byte payload |
 | `S` | yes        | `u32 fid, u32 line, u32 calls, u64 inc_ticks, u64 exc_ticks` × M   | 100 ns ticks                                       |
 | `D` | yes        | `u32 sid, u32 flags, zstr name` × K                                | flags=0 for now                                    |
 | `C` | yes        | `u32 caller_sid, u32 callee_sid, u32 calls, u64 ticks, u64 sub_ticks` × L | Call-graph edges                                  |
