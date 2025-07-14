@@ -17,9 +17,10 @@ def test_one_F_chunk(tmp_path, monkeypatch):
         tok = data[off:off+1]
         tags.append(tok)
         if tok == b'P':
-            off += 1 + 4 + 4 + 4 + 8
+            off += 1 + 4 + 4 + 8
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
     f_positions = [i for i, t in enumerate(tags) if t == b'F']
     assert f_positions == [], f'Unexpected F chunk positions: {f_positions}'
+

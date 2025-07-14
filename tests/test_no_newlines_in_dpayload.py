@@ -16,7 +16,7 @@ def test_D_payload_free_of_newlines(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    idx += 21  # skip P
+    idx += 17  # skip P
     # skip S
     slen = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + slen
@@ -25,3 +25,4 @@ def test_D_payload_free_of_newlines(tmp_path):
     dlen = int.from_bytes(data[idx+1:idx+5],'little')
     dpayload = data[idx+5:idx+5+dlen]
     assert dpayload.endswith(b"\x00")
+

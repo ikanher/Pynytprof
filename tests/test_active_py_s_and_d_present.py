@@ -16,9 +16,10 @@ def test_active_writer_includes_S_and_D(tmp_path, monkeypatch):
         tok = data[off:off+1]
         tags.append(tok)
         if tok == b'P':
-            off += 1 + 4 + 4 + 4 + 8
+            off += 1 + 4 + 4 + 8
             continue
         length = int.from_bytes(data[off+1:off+5],'little')
         off += 5 + length
     assert b'S' in tags, f"S chunk missing, only saw {tags!r}"
     assert b'D' in tags, f"D chunk missing, only saw {tags!r}"
+

@@ -19,7 +19,7 @@ def test_S_and_D_non_empty(tmp_path, monkeypatch):
     while off < len(data):
         tag = data[off:off+1]
         if tag == b"P":
-            off += 21
+            off += 17
             seen[tag] = 16
             continue
         length = int.from_bytes(data[off+1:off+5], "little")
@@ -27,4 +27,5 @@ def test_S_and_D_non_empty(tmp_path, monkeypatch):
         off += 5 + length
     assert seen[b"S"] > 0, f"S length {seen[b'S']}"
     assert seen[b"D"] > 0, f"D length {seen[b'D']}"
+
 

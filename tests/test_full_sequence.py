@@ -14,7 +14,7 @@ def _tokens(out):
         tok = data[off:off+1]
         toks.append(tok)
         if tok == b'P':
-            off += 1 + 4 + 4 + 4 + 8
+            off += 1 + 4 + 4 + 8
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
@@ -36,3 +36,4 @@ def test_full_sequence_c(tmp_path, monkeypatch):
     monkeypatch.setenv('PYTHONPATH', str(Path(__file__).resolve().parents[1] / 'src'))
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), SCRIPT])
     assert _tokens(out) == b'PSDCE'
+

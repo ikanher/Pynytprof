@@ -24,4 +24,5 @@ def test_p_record_raw(tmp_path):
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
     assert data[idx:idx+1] == b"P"
-    assert data[idx+21:idx+22] == b"S"
+    assert data[idx+17:idx+18] == b"S"
+

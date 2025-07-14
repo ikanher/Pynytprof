@@ -93,12 +93,19 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
-    def _write_raw_P(self, payload: bytes) -> None:
+    def _write_raw_P(self, pid: int | None = None, ppid: int | None = None, tstamp: float | None = None) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
+        if pid is None:
+            pid = os.getpid()
+        if ppid is None:
+            ppid = os.getppid()
+        if tstamp is None:
+            tstamp = time.time()
         self._fh.write(b"P")
-        self._fh.write(struct.pack("<I", len(payload)))
-        self._fh.write(payload)
+        self._fh.write(struct.pack("<I", pid))
+        self._fh.write(struct.pack("<I", ppid))
+        self._fh.write(struct.pack("<d", tstamp))
 
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
@@ -111,25 +118,27 @@ class Writer:
 
         pid = os.getpid()
         ppid = os.getppid()
-        pid_bytes = struct.pack("<I", pid)
-        ppid_bytes = struct.pack("<I", ppid)
-        nv_bytes = struct.pack("<d", time.time())
-        payload = pid_bytes + ppid_bytes + nv_bytes
+        tstamp = time.time()
+        payload = (
+            struct.pack("<I", pid)
+            + struct.pack("<I", ppid)
+            + struct.pack("<d", tstamp)
+        )
         assert len(payload) == 16
         banner_len = len(banner)
-        self.header_size = banner_len + 1 + 4 + len(payload)
+        self.header_size = banner_len + 17
         if os.getenv("PYNYTPROF_DEBUG"):
             p_offset = banner_len
-            s_offset = p_offset + 1 + 4 + len(payload)
+            s_offset = p_offset + 17
             print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
             print(
                 f"DEBUG: P-offset=0x{p_offset:x} S-offset expected=0x{s_offset:x}",
                 file=sys.stderr,
             )
-        self._write_raw_P(payload)
+        self._write_raw_P(pid, ppid, tstamp)
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
-                f"DEBUG: wrote raw P record (21 B) pid={pid} ppid={ppid}",
+                f"DEBUG: wrote raw P record (17 B) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
@@ -246,13 +255,14 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
 
         pid = os.getpid()
         ppid = os.getppid()
-        pid_bytes = struct.pack("<I", pid)
-        ppid_bytes = struct.pack("<I", ppid)
-        nv_bytes = struct.pack("<d", time.time())
-        payload = pid_bytes + ppid_bytes + nv_bytes
+        tstamp = time.time()
+        payload = (
+            struct.pack("<I", pid)
+            + struct.pack("<I", ppid)
+            + struct.pack("<d", tstamp)
+        )
         assert len(payload) == 16
         f.write(b"P")
-        f.write(struct.pack("<I", len(payload)))
         f.write(payload)
 
         s_payload = b"".join(

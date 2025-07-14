@@ -24,7 +24,7 @@ def test_dchunk_binary(tmp_path):
     )
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
-    idx += 21  # skip P record
+    idx += 17  # skip P record
     length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     idx += 5 + length
     assert data[idx : idx + 1] == b'D'
@@ -33,3 +33,4 @@ def test_dchunk_binary(tmp_path):
     assert payload.startswith(b"\x01")
     assert payload.endswith(b"\x00")
     assert dlen > 1
+
