@@ -10,15 +10,17 @@ def test_pchunk_no_newlines(tmp_path):
         **os.environ,
         'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src'),
     }
-    subprocess.check_call([
+    p = subprocess.Popen([
         sys.executable,
         '-m', 'pynytprof.tracer',
         '-o', str(out),
         '-e', 'pass',
     ], env=env)
+    p.wait()
     data = out.read_bytes()
     idx = data.index(b'\nP') + 1
     assert data[idx:idx+1] == b'P'
-    assert data[idx+1:idx+5] == (16).to_bytes(4, 'little')
-    payload = data[idx+5:idx+21]
+    pid_bytes = p.pid.to_bytes(4, 'little')
+    assert data[idx+1:idx+5] == pid_bytes
+    payload = data[idx+5:idx+17]
     assert b'\n' not in payload

@@ -104,23 +104,22 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         start_time_s = time.time()
-        payload = struct.pack("<IId", pid, ppid, start_time_s)
+        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", start_time_s)
+        assert len(payload) == 16
         banner_len = len(banner)
-        self.header_size = banner_len + 1 + 4 + 16
+        self.header_size = banner_len + 1 + len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             p_offset = banner_len
-            s_offset = p_offset + 21
-            first4 = (b"P" + (16).to_bytes(4, "little"))[:4].hex()
+            s_offset = p_offset + 17
             print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
             print(
                 f"DEBUG: P-offset=0x{p_offset:x} S-offset expected=0x{s_offset:x}",
                 file=sys.stderr,
             )
-            print(f"DEBUG: after header, first4 = {first4}", file=sys.stderr)
-        self._fh.write(b"P" + (16).to_bytes(4, "little") + payload)
+        self._fh.write(b"P" + payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
-                f"DEBUG: wrote P TLV (21 B) pid={pid} ppid={ppid}",
+                f"DEBUG: wrote raw P record (17 B) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
@@ -235,8 +234,9 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack("<IId", pid, ppid, ts)
-        f.write(b"P" + len(payload).to_bytes(4, "little") + payload)
+        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
+        assert len(payload) == 16
+        f.write(b"P" + payload)
 
         s_payload = b"".join(
             struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)
