@@ -90,9 +90,11 @@ class Writer:
         ppid = os.getppid()
         start_time_s = time.time()
         payload = struct.pack("<dII", start_time_s, pid, ppid)
+        banner_len = len(banner)
+        self.header_size = banner_len + 1 + 4 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: write tag=P len={len(payload)}", file=sys.stderr)
-        self._fh.write(b"P" + len(payload).to_bytes(4, "little") + payload)
+            print("DEBUG: wrote P TLV (21 B)", file=sys.stderr)
+        self._fh.write(b"P" + (16).to_bytes(4, "little") + payload)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         payload = payload.replace(b"\n", b"\x01")
