@@ -36,7 +36,7 @@ NYTProf <major> <minor>\n
 Most records are **TLV** → `tag:u8` + `len:u32(le)` + `payload`.
 
 **Sequence**
-1. `P`  process-start (21 bytes total)
+1. `P`  process-start (17 bytes total)
 2. `S`  statement samples
 3. `D`  sub-descriptors
 4. `C`  call-graph edges
