@@ -14,7 +14,7 @@ def parse_chunks(data: bytes) -> dict:
                 idx += 1
                 continue
             payload = data[idx + 5 : idx + 5 + length]
-            off = idx - 1 if idx > 0 and data[idx - 1:idx] == b"\n" else idx
+            off = idx
             chunks[tag.decode()] = {
                 "offset": off,
                 "length": length,

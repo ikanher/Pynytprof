@@ -26,4 +26,5 @@ def test_s_offset_after_p(tmp_path):
     assert 'P' in chunks and 'S' in chunks
     p_chunk = chunks['P']
     s_chunk = chunks['S']
-    assert s_chunk['offset'] > p_chunk['offset'] + 5 + p_chunk['length']
+    expected = p_chunk['offset'] + 1 + 4 + p_chunk['length']
+    assert s_chunk['offset'] == expected
