@@ -110,15 +110,16 @@ def _write_nytprof(out_path: Path) -> None:
         import struct
 
         emitted_d = False
+        d_payload = b""
         if hasattr(w, "_stmt_records"):
             w._stmt_records.extend(_stmt_records)
             emitted_d = bool(_stmt_records)
         elif _stmt_records:
-            d_buf = bytearray()
+            buf = bytearray()
             for fid, line, dur in _stmt_records:
-                d_buf += struct.pack("<BIIQ", 1, fid, line, dur)
-            d_buf.append(0)
-            w.write_chunk(b"D", bytes(d_buf))
+                buf += struct.pack("<BIIQ", 1, fid, line, dur)
+            buf.append(0)
+            d_payload = bytes(buf)
             emitted_d = True
 
         recs = []
@@ -136,6 +137,8 @@ def _write_nytprof(out_path: Path) -> None:
         payload = b"".join(recs)
         if payload:
             w.write_chunk(b"S", payload)
+        if d_payload:
+            w.write_chunk(b"D", d_payload)
 
         emitted_c = False
         if _calls:
