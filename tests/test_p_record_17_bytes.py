@@ -1,11 +1,9 @@
 import struct
-import os
-import subprocess
-import sys
+import subprocess, os, sys
 from pathlib import Path
 
 
-def test_s_offset_after_p(tmp_path):
+def test_p_record_17_bytes(tmp_path):
     out = tmp_path / "nytprof.out"
     env = {
         **os.environ,
@@ -21,7 +19,9 @@ def test_s_offset_after_p(tmp_path):
         "pass",
     ], env=env)
     data = out.read_bytes()
-    idx_p = data.index(b"\nP") + 1
-    s_expected = idx_p + 1 + 16
-    idx_s = data.index(b"S", s_expected - 1)
-    assert idx_s == s_expected
+    idx = data.index(b"\nP") + 1
+    assert data[idx] == 0x50
+    pid, ppid, ts = struct.unpack("<II", data[idx+1:idx+9]) + (
+        struct.unpack("<d", data[idx+9:idx+17])[0],
+    )
+    assert idx + 17 == data.index(b"S", idx)

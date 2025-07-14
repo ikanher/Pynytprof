@@ -19,12 +19,8 @@ def test_S_and_D_non_empty(tmp_path, monkeypatch):
     while off < len(data):
         tag = data[off:off+1]
         if tag == b"P":
-            if data[off+1:off+5] == b"\x10\x00\x00\x00":
-                length = 16
-                off += 5 + length
-            else:
-                length = 16
-                off += 1 + length
+            length = 16
+            off += 1 + length
             seen[tag] = length
             continue
         length = int.from_bytes(data[off+1:off+5], "little")

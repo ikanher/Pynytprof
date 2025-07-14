@@ -155,13 +155,20 @@ class Writer:
                 f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
                 file=sys.stderr,
             )
-        length_bytes = struct.pack("<I", len(payload))
-        self._fh.write(b"P" + length_bytes + payload)
-        self.header_size = len(banner) + 1 + 4 + 16
+        self._fh.write(b"P" + payload)
+        self.header_size = len(banner) + 1 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
             p_off = len(banner)
             print(
-                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+21:#x}",
+                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+17:#x}",
+                file=sys.stderr,
+            )
+            self._fh.flush()
+            with open(self._fh.name, "rb") as f:
+                data = f.read()
+            first4 = data[p_off : p_off + 4].hex()
+            print(
+                f"DEBUG: after header, first4 = {first4}",
                 file=sys.stderr,
             )
             print(
@@ -292,7 +299,7 @@ class Writer:
         print("DEBUG: TLV parse check on", fpath)
         with open(fpath, "rb") as fh:
             data = fh.read()
-        banner_len = self.header_size - 21  # account for P record (21 bytes)
+        banner_len = self.header_size - 17  # account for P record (17 bytes)
         i = banner_len
         chunk = 1
         if data[i:i+1] == b"P":
@@ -300,7 +307,7 @@ class Writer:
             print(
                 f"DEBUG: chunk {chunk} tag={data[i:i+1]!r} offset=0x{i:x} len={length}"
             )
-            i += 1 + 4 + length
+            i += 1 + length
             chunk += 1
         while i < len(data):
             tag = data[i : i + 1]
