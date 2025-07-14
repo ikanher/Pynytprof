@@ -93,7 +93,6 @@ class Writer:
             b"C": bytearray(),
         }
         self._chunk_order = [b"S", b"D", b"C", b"E"]
-        self.header_size = len(_make_ascii_header(self._start_ns))
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -138,7 +137,7 @@ class Writer:
         # banner is guaranteed to end with a single LF
         assert banner.endswith(b"\n")
         self._fh.write(banner)
-        self.header_size = len(banner)
+        # ascii banner is immediately followed by the process-start TLV
 
         import struct, time, os
 
@@ -158,19 +157,13 @@ class Writer:
             )
         length_bytes = struct.pack("<I", len(payload))
         self._fh.write(b"P" + length_bytes + payload)
-        self.header_size = len(banner) + 1 + 4 + len(payload)
+        self.header_size = len(banner) + 1 + 4 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
-            self._fh.flush()
-            with open(self._fh.name, "rb") as f:
-                data = f.read()
-            banner_len = len(banner)
+            p_off = len(banner)
             print(
-                "DEBUG: after header, first5=",
-                data[banner_len : banner_len + 5].hex(),
+                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+21:#x}",
                 file=sys.stderr,
             )
-
-        if os.getenv("PYNYTPROF_DEBUG"):
             print(
                 f"DEBUG: wrote P TLV, len=16, pid={pid},ppid={ppid},ts={ts:.6f}",
                 file=sys.stderr,
