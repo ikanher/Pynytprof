@@ -22,7 +22,7 @@ def test_p_record_format(tmp_path):
     data = out.read_bytes()
     idx = data.index(b"\nP") + 1
     assert data[idx:idx+1] == b"P"
-    payload = data[idx + 1 : idx + 17]
+    payload = data[idx + 5 : idx + 21]
     pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == p.pid
     assert ppid == os.getpid()
