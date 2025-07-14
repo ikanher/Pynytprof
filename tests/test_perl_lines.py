@@ -12,17 +12,19 @@ def test_perl_lines(tmp_path):
     script = Path(__file__).with_name("example_script.py")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    out_file = tmp_path / f"nytprof.out.{os.getpid()}"
     subprocess.check_call(
         [
             sys.executable,
             "-m",
             "pynytprof.tracer",
+            "-o",
+            str(out_file),
             str(script),
         ],
         cwd=tmp_path,
         env=env,
     )
-    out_file = tmp_path / "nytprof.out"
     cmd = [
         "perl",
         "-MDevel::NYTProf::Data",

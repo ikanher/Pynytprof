@@ -15,7 +15,7 @@ import pytest
 @pytest.mark.parametrize("hide_cwrite", [False, True])
 def test_format(tmp_path, hide_cwrite):
     script = Path(__file__).with_name("example_script.py")
-    out = tmp_path / "nytprof.out"
+    out = tmp_path / f"nytprof.out.{os.getpid()}"
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     if hide_cwrite:
@@ -25,7 +25,9 @@ def test_format(tmp_path, hide_cwrite):
         (pkg / "_cwrite.py").write_text("raise ImportError\n")
         env["PYTHONPATH"] = str(fake) + os.pathsep + env["PYTHONPATH"]
     subprocess.check_call(
-        [sys.executable, "-m", "pynytprof.tracer", str(script)], cwd=tmp_path, env=env
+        [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), str(script)],
+        cwd=tmp_path,
+        env=env,
     )
     assert out.exists()
     with out.open("rb") as f:

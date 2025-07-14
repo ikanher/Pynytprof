@@ -13,17 +13,20 @@ def run(filter_val, tmp_path):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     env["NYTPROF_FILTER"] = filter_val
+    out = tmp_path / f"nytprof.out.{os.getpid()}"
     subprocess.check_call(
         [
             sys.executable,
             "-m",
             "pynytprof.tracer",
+            "-o",
+            str(out),
             str(SCRIPT),
         ],
         cwd=tmp_path,
         env=env,
     )
-    out = tmp_path / "nytprof.out"
+    
     return read(str(out))
 
 

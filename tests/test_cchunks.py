@@ -24,12 +24,15 @@ def test_c_chunks(tmp_path, use_c):
         pkg.mkdir(parents=True)
         (pkg / "_cwrite.py").write_text("raise ImportError\n")
         env["PYTHONPATH"] = str(fake) + os.pathsep + env["PYTHONPATH"]
+    out = tmp_path / f"nytprof.out.{os.getpid()}"
     subprocess.check_call([
         sys.executable,
         "-m",
         "pynytprof.tracer",
+        "-o",
+        str(out),
         str(script),
     ], cwd=tmp_path, env=env)
-    data = (tmp_path / "nytprof.out").read_bytes()
+    data = out.read_bytes()
     assert b"C\x00" in data
     assert b"D\x00" in data

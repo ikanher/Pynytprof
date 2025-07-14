@@ -28,8 +28,8 @@ def test_nytprofhtml_roundtrip(tmp_path, monkeypatch):
     importlib.reload(tracer)
     monkeypatch.chdir(tmp_path)
 
-    tracer.profile_script(str(script))
-    out = tmp_path / "nytprof.out"
+    out = tmp_path / f"nytprof.out.{os.getpid()}"
+    tracer.profile_script(str(script), out_path=out)
     assert out.exists(), "profiling produced no output file"
 
     res = subprocess.run(
