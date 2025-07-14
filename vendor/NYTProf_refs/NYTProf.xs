@@ -176,7 +176,11 @@ output_header(pTHX)
         NYTP_start_deflate_write_tag_comment(out, compression_level);
     }
 #endif
-    NYTP_write_process_start(out, getpid(), getppid(), gettimeofday_nv());
+    /* raw P record */
+    fputc('P', out);
+    store_le32(out, getpid());
+    store_le32(out, getppid());
+    store_ledouble(out, gettimeofday_nv());
     write_cached_fids();                          /* empty initially, non-empty after fork */
     NYTP_flush(out);
 }

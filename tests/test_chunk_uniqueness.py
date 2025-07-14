@@ -24,7 +24,7 @@ def test_chunk_uniqueness(tmp_path):
     pattern = re.compile(r"^DEBUG: write tag=(\w) len=(\d+)")
     tags = []
     for line in proc.stderr.splitlines():
-        if line.startswith("DEBUG: wrote P TLV"):
+        if line.startswith("DEBUG: wrote raw P record"):
             tags.append('P')
             continue
         if m := pattern.search(line):

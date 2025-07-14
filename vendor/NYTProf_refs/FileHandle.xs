@@ -1025,18 +1025,24 @@ size_t
 NYTP_write_process_start(NYTP_file ofile, U32 pid, U32 ppid,
                          NV time_of_day)
 {
-    size_t total;
+    size_t total = 0;
     size_t retval;
 
-    total = retval = output_tag_u32(ofile, NYTP_TAG_PID_START, pid);
+    /* raw P record: tag then pid, ppid and timestamp in LE */
+    retval = NYTP_write(ofile, "P", 1);
+    if (retval < 1)
+        return retval;
+    total += retval;
+
+    total += retval = store_le32(ofile, pid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_u32(ofile, ppid);
+    total += retval = store_le32(ofile, ppid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_nv(ofile, time_of_day);
+    total += retval = store_ledouble(ofile, time_of_day);
     if (retval < 1)
         return retval;
 
