@@ -1,4 +1,3 @@
-import struct
 import os
 import subprocess
 import sys
@@ -17,6 +16,8 @@ def test_only_one_p_record(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    hdr = b"P" + struct.pack("<I", p.pid)
-    occurrences = [i for i in range(len(data)-4) if data[i:i+5] == hdr]
+    length16 = (16).to_bytes(4, "little")
+    occurrences = [
+        i for i in range(len(data) - 5) if data[i : i + 5] == b"P" + length16
+    ]
     assert len(occurrences) == 1, f"Expected one P TLV, found {len(occurrences)}"
