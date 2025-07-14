@@ -146,9 +146,8 @@ class Writer:
 
         pid = os.getpid()
         ppid = os.getppid()
-        ts = time.time()
+        payload = struct.pack("<IId", pid, ppid, time.time())
         import binascii
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
         assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
@@ -172,7 +171,7 @@ class Writer:
                 file=sys.stderr,
             )
             print(
-                f"DEBUG: wrote P TLV, len=16, pid={pid},ppid={ppid},ts={ts:.6f}",
+                f"DEBUG: wrote P record (17 bytes) pid={pid} ppid={ppid}",
                 file=sys.stderr,
             )
             print(
