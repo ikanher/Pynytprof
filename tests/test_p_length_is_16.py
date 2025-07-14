@@ -25,8 +25,6 @@ def test_p_length_is_16(tmp_path, writer):
     assert data[idx+1:idx+5] == (16).to_bytes(4, "little")
     payload = data[idx+5:idx+21]
     assert len(payload) == 16
-    if writer == "py":
-        ts, pid, ppid = struct.unpack("<dII", payload)
-    else:
-        pid, ppid, ts = struct.unpack("<IId", payload)
+    pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == os.getpid()
+    assert ppid == os.getppid()

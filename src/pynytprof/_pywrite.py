@@ -89,7 +89,7 @@ class Writer:
         pid = os.getpid()
         ppid = os.getppid()
         start_time_s = time.time()
-        payload = struct.pack("<dII", start_time_s, pid, ppid)
+        payload = struct.pack("<IId", pid, ppid, start_time_s)
         banner_len = len(banner)
         self.header_size = banner_len + 1 + 4 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -174,7 +174,7 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack("<dII", ts, pid, ppid)
+        payload = struct.pack("<IId", pid, ppid, ts)
         f.write(b"P" + len(payload).to_bytes(4, "little") + payload)
 
         s_payload = b"".join(
