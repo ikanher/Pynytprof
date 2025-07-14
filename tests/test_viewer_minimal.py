@@ -20,14 +20,15 @@ def test_viewer_minimal(tmp_path):
 
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    out = tmp_path / f"nytprof.out.{os.getpid()}"
     subprocess.check_call(
-        [sys.executable, "-m", "pynytprof.tracer", str(script)],
+        [sys.executable, "-m", "pynytprof.tracer", "-o", str(out), str(script)],
         cwd=tmp_path,
         env=env,
     )
 
     subprocess.check_call(
-        ["nytprofhtml", "-f", "nytprof.out", "-o", "report"],
+        ["nytprofhtml", "-f", out.name, "-o", "report"],
         cwd=tmp_path,
     )
 

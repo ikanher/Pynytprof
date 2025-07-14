@@ -9,7 +9,10 @@ from . import convert, verify
 
 
 def _cmd_profile(args: argparse.Namespace) -> int:
-    cmd = [sys.executable, "-m", "pynytprof.tracer", args.script, *args.args]
+    cmd = [sys.executable, "-m", "pynytprof.tracer"]
+    if args.out:
+        cmd += ["-o", args.out]
+    cmd += [args.script, *args.args]
     proc = subprocess.run(cmd, env=os.environ.copy())
     return proc.returncode
 
@@ -40,6 +43,7 @@ def main(argv: list[str] | None = None) -> None:
     pr = sub.add_parser("profile", help="profile a script")
     pr.add_argument("script")
     pr.add_argument("args", nargs=argparse.REMAINDER)
+    pr.add_argument("-o", "--out")
     pr.add_argument("-q", "--quiet", action="store_true")
     pr.set_defaults(func=_cmd_profile)
 

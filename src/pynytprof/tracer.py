@@ -269,7 +269,7 @@ def _trace(frame: FrameType, event: str, arg: Any) -> Any:
     return _trace
 
 
-def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
+def profile_script(path: str, out_path: Path | str | None = None) -> None:
     global _script_path, _start_ns, _results, _filters, _line_hits, _emitted_f
     global _stmt_records
     _filters = [p for p in os.environ.get("NYTPROF_FILTER", "").split(",") if p]
@@ -312,6 +312,8 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
     _stack = []
     _call_stack = []
     _stmt_records = []
+    if out_path is None:
+        out_path = f"nytprof.out.{os.getpid()}"
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
@@ -321,7 +323,7 @@ def profile_script(path: str, out_path: Path | str = "nytprof.out") -> None:
         _write_nytprof(out_p)
 
 
-def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
+def profile_command(code: str, out_path: Path | str | None = None) -> None:
     global _script_path, _start_ns, _results, _filters, _line_hits
     global _calls, _call_time_ns, _edge_time_ns, _last_ts, _stack
     global _call_stack, _emitted_f, _stmt_records
@@ -338,6 +340,8 @@ def profile_command(code: str, out_path: Path | str = "nytprof.out") -> None:
     _stack = []
     _call_stack = []
     _stmt_records = []
+    if out_path is None:
+        out_path = f"nytprof.out.{os.getpid()}"
     out_p = Path(out_path)
     sys.settrace(_trace)
     try:
@@ -361,7 +365,12 @@ def cli() -> None:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="pynytprof.tracer")
-    parser.add_argument("-o", "--output", type=Path, default="nytprof.out")
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=f"nytprof.out.{os.getpid()}",
+    )
     parser.add_argument("-e", dest="expr", default=None)
     parser.add_argument("script", nargs="?")
     parser.add_argument("args", nargs=argparse.REMAINDER)

@@ -23,13 +23,13 @@ def test_profile_verify(tmp_path, writer):
     env = dict(ENV)
     if writer == "py":
         env["PYNTP_FORCE_PY"] = "1"
-    proc = subprocess.run([str(CLI), "profile", str(script)], cwd=tmp_path, env=env)
+    out_file = tmp_path / f"nytprof.out.{os.getpid()}"
+    proc = subprocess.run([str(CLI), "profile", "-o", str(out_file), str(script)], cwd=tmp_path, env=env)
     assert proc.returncode == 0
-    out_file = tmp_path / "nytprof.out"
     data = out_file.read_bytes()
     assert data.startswith(b"NYTProf 5 0\n")
     proc = subprocess.run(
-        [str(CLI), "verify", "nytprof.out", "-q"],
+        [str(CLI), "verify", out_file.name, "-q"],
         cwd=tmp_path,
         env=env,
         capture_output=True,
@@ -43,14 +43,14 @@ def test_profile_verify(tmp_path, writer):
             "-MDevel::NYTProf::Data",
             "-e",
             "exit !Devel::NYTProf::Data->new({filename=>shift})->blocks",
-            "nytprof.out",
+            out_file.name,
         ],
         cwd=tmp_path,
     )
     if perl.returncode != 0:
         pytest.skip("NYTProf Perl module missing")
     proc = subprocess.run(
-        [str(CLI), "verify", "nytprof.out"],
+        [str(CLI), "verify", out_file.name],
         cwd=tmp_path,
         env=env,
         capture_output=True,
@@ -60,12 +60,19 @@ def test_profile_verify(tmp_path, writer):
     assert "\u2713" in proc.stdout
     bad_data = data[:-5]
     out_file.write_bytes(bad_data)
-    bad = subprocess.run([str(CLI), "verify", "nytprof.out"], cwd=tmp_path, env=env)
+    bad = subprocess.run([str(CLI), "verify", out_file.name], cwd=tmp_path, env=env)
     assert bad.returncode == 1
 
 
 def test_exit_code_passthrough(tmp_path):
     script = tmp_path / "exitme.py"
     script.write_text("import sys; sys.exit(3)\n")
-    proc = subprocess.run([str(CLI), "profile", str(script)], cwd=tmp_path, env=ENV)
+    out_file = tmp_path / f"nytprof.out.{os.getpid()}"
+    proc = subprocess.run([
+        str(CLI),
+        "profile",
+        "-o",
+        str(out_file),
+        str(script)
+    ], cwd=tmp_path, env=ENV)
     assert proc.returncode == 3
