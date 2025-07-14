@@ -66,7 +66,14 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 
 
 class Writer:
-    def __init__(self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000, tracer=None, script_path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str,
+        start_ns: int | None = None,
+        ticks_per_sec: int = 10_000_000,
+        tracer=None,
+        script_path: str | None = None,
+    ) -> None:
         self._path = Path(path)
         self._fh = None
         self.start_time = time.time_ns() if start_ns is None else start_ns
@@ -77,13 +84,21 @@ class Writer:
         self.script_path = str(Path(script_path or sys.argv[0]).resolve())
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
-        self._payloads: dict[bytes, bytearray] = {b"S": bytearray(), b"D": bytearray(), b"C": bytearray()}
+        self._payloads: dict[bytes, bytearray] = {
+            b"S": bytearray(),
+            b"D": bytearray(),
+            b"C": bytearray(),
+        }
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
         assert banner.endswith(b"\n")
         if os.getenv("PYNYTPROF_DEBUG"):
+            last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
+            print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
         self._fh.write(banner)
 
         pid = os.getpid()
@@ -93,8 +108,25 @@ class Writer:
         banner_len = len(banner)
         self.header_size = banner_len + 1 + 4 + 16
         if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: wrote P TLV (21 B)", file=sys.stderr)
+            p_offset = banner_len
+            s_offset = p_offset + 21
+            first4 = (b"P" + (16).to_bytes(4, "little"))[:4].hex()
+            print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
+            print(
+                f"DEBUG: P-offset=0x{p_offset:x} S-offset expected=0x{s_offset:x}",
+                file=sys.stderr,
+            )
+            print(f"DEBUG: after header, first4 = {first4}", file=sys.stderr)
         self._fh.write(b"P" + (16).to_bytes(4, "little") + payload)
+        if os.getenv("PYNYTPROF_DEBUG"):
+            print(
+                f"DEBUG: wrote P TLV (21 B) pid={pid} ppid={ppid}",
+                file=sys.stderr,
+            )
+            print(
+                f"DEBUG: header_size={self.header_size} first_token=P",
+                file=sys.stderr,
+            )
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         payload = payload.replace(b"\n", b"\x01")
@@ -103,7 +135,29 @@ class Writer:
             payload += b"\x00"
             length = len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: write tag={tag.decode()} len={length}", file=sys.stderr)
+            offset = self._fh.tell()
+            from hashlib import sha256
+
+            digest = sha256(payload).hexdigest() if payload else ""
+            first16 = payload[:16].hex()
+            last16 = payload[-16:].hex() if payload else ""
+            print(
+                f"DEBUG: write tag={tag.decode()} len={length}",
+                file=sys.stderr,
+            )
+            print(
+                f"       offset=0x{offset:x}",
+                file=sys.stderr,
+            )
+            print(
+                f"       sha256={digest}",
+                file=sys.stderr,
+            )
+            if payload:
+                print(
+                    f"       first16={first16} last16={last16}",
+                    file=sys.stderr,
+                )
         self._fh.write(tag + length.to_bytes(4, "little") + payload)
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
@@ -131,8 +185,10 @@ class Writer:
             return
 
         if self.tracer is not None:
+
             def ns2ticks(ns: int) -> int:
                 return ns // 100
+
             for line, calls in self.tracer._line_hits.items():
                 self._line_hits[(0, line)] = (
                     calls,
@@ -154,6 +210,11 @@ class Writer:
             self._payloads[b"D"] = buf
         elif not self._payloads[b"D"]:
             self._payloads[b"D"] = bytearray()
+
+        if os.getenv("PYNYTPROF_DEBUG"):
+            summary = {t.decode(): len(self._payloads.get(t, b"")) for t in [b"S", b"D", b"C"]}
+            summary["E"] = 0
+            print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
         for tag in [b"S", b"D", b"C", b"E"]:
             payload = bytes(self._payloads.get(tag, b"")) if tag != b"E" else b""
@@ -206,4 +267,3 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         f.write(_chunk(b"D", d_payload))
         f.write(_chunk(b"C", c_payload))
         f.write(_chunk(b"E", b""))
-
