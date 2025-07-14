@@ -25,7 +25,7 @@ def test_p_record_format(tmp_path):
     length = int.from_bytes(data[idx+1:idx+5], "little")
     assert length == 16
     payload = data[idx + 5 : idx + 21]
-    pid, ppid, ts = struct.unpack("<IId", payload)
+    ts, pid, ppid = struct.unpack("<dII", payload)
     assert pid == p.pid
     assert ppid == os.getpid()
     assert abs(ts - time.time()) < 1.0

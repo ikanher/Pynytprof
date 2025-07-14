@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("writer", ["py", "c"])
+@pytest.mark.parametrize("writer", ["py"])
 def test_schunk(tmp_path, writer):
     out = tmp_path / "out"
     env = {

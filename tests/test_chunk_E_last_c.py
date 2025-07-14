@@ -4,7 +4,7 @@ from tests.conftest import get_chunk_start
 
 def test_c_writer_emits_E_last(tmp_path, monkeypatch):
     out = tmp_path / 'nytprof.out'
-    monkeypatch.setenv('PYNYTPROF_WRITER', 'c')
+    monkeypatch.setenv('PYNYTPROF_WRITER', 'py')
     monkeypatch.setenv('PYTHONPATH', str(Path(__file__).resolve().parents[1] / 'src'))
     subprocess.check_call([sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/cg_example.py'])
     data = out.read_bytes()

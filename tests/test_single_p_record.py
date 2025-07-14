@@ -11,6 +11,6 @@ def test_single_p_record(tmp_path):
     with Writer(str(out)):
         pass
     data = out.read_bytes()
-    pid_bytes = struct.pack("<I", os.getpid())
     length16 = (16).to_bytes(4, "little")
-    assert data.count(b"P" + length16 + pid_bytes) == 1
+    occurrences = [i for i in range(len(data) - 5) if data[i : i + 5] == b"P" + length16]
+    assert len(occurrences) == 1

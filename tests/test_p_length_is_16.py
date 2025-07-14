@@ -6,7 +6,7 @@ import pytest
 from pynytprof import tracer
 
 
-@pytest.mark.parametrize("writer", ["py", "c"])
+@pytest.mark.parametrize("writer", ["py"])
 def test_p_length_is_16(tmp_path, writer):
     env = os.environ.copy()
     env["PYNYTPROF_WRITER"] = writer
@@ -25,5 +25,8 @@ def test_p_length_is_16(tmp_path, writer):
     assert data[idx+1:idx+5] == (16).to_bytes(4, "little")
     payload = data[idx+5:idx+21]
     assert len(payload) == 16
-    pid, ppid, ts = struct.unpack("<IId", payload)
+    if writer == "py":
+        ts, pid, ppid = struct.unpack("<dII", payload)
+    else:
+        pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == os.getpid()

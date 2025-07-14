@@ -1,4 +1,3 @@
-# Simple pure-Python NYTProf writer fallback
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +10,6 @@ import datetime
 from email.utils import format_datetime
 from importlib import resources
 import re
-import hashlib
 
 try:  # Python 3.9+
     _version_text = resources.files(__package__).joinpath("nytp_version.h").read_text()
@@ -64,19 +62,11 @@ def _make_ascii_header(start_ns: int) -> bytes:
 
 
 def _chunk(tok: bytes, payload: bytes) -> bytes:
-    """Return a NYTProf chunk without any extra processing."""
     return tok[:1] + len(payload).to_bytes(4, "little") + payload
 
 
 class Writer:
-    def __init__(
-        self,
-        path: str,
-        start_ns: int | None = None,
-        ticks_per_sec: int = 10_000_000,
-        tracer=None,
-        script_path: str | None = None,
-    ):
+    def __init__(self, path: str, start_ns: int | None = None, ticks_per_sec: int = 10_000_000, tracer=None, script_path: str | None = None) -> None:
         self._path = Path(path)
         self._fh = None
         self.start_time = time.time_ns() if start_ns is None else start_ns
@@ -87,116 +77,43 @@ class Writer:
         self.script_path = str(Path(script_path or sys.argv[0]).resolve())
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
-        self._buf: dict[bytes, bytearray] = {
-            b"S": bytearray(),
-            b"D": bytearray(),
-            b"C": bytearray(),
-        }
-        self._chunk_order = [b"S", b"D", b"C", b"E"]
-        if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
-
-    def _calc_start_offset(self, tag: bytes) -> int:
-        offset = self.header_size
-        for t in self._chunk_order:
-            if t == tag:
-                break
-            offset += 5 + len(self._buf.get(t, b""))
-        return offset
-
-    def _debug_chunk_info(self, tag: bytes, payload: bytes, offset: int) -> None:
-        if not os.getenv("PYNYTPROF_DEBUG"):
-            return
-        declared_len = len(payload)
-        actual_len = len(payload)
-        sha256 = hashlib.sha256(payload).hexdigest()
-        first16 = payload[:16].hex()
-        last16 = payload[-16:].hex()
-        lines = [
-            f"DEBUG: buffering chunk tag={tag.decode()} offset=0x{offset:x}",
-            f"       declared_len={declared_len} actual_len={actual_len}",
-            f"       sha256={sha256}",
-            f"       first16={first16} last16={last16}",
-        ]
-        print("\n".join(lines), file=sys.stderr)
-
-    def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
-        offset = self._calc_start_offset(tag)
-        self._buf.setdefault(tag, bytearray()).extend(payload)
-        self._debug_chunk_info(tag, payload, offset)
-
-    def _make_data_section(self) -> bytes:
-        buf = bytearray()
-        for fid, line, dur in self._stmt_records:
-            buf += struct.pack("<BIIQ", 1, fid, line, dur)
-        buf.append(0)
-        return bytes(buf)
+        self._payloads: dict[bytes, bytearray] = {b"S": bytearray(), b"D": bytearray(), b"C": bytearray()}
 
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
-        # banner is guaranteed to end with a single LF
         assert banner.endswith(b"\n")
-        self._fh.write(banner)
-        # ascii banner is immediately followed by the process-start TLV
-
-        import struct, time, os
-
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: banner_end={banner[-9:]}", file=sys.stderr)
+            print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
+        self._fh.write(banner)
 
         pid = os.getpid()
         ppid = os.getppid()
-        ts = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
-        import binascii
-        assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
+        start_time_s = time.time()
+        payload = struct.pack("<dII", start_time_s, pid, ppid)
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(
-                f"DEBUG: P-payload raw={binascii.hexlify(payload)}",
-                file=sys.stderr,
-            )
-        length16 = (16).to_bytes(4, "little")
-        self._fh.write(b"P" + length16 + payload)
-        self.header_size = len(banner) + 1 + 4 + 16
+            print(f"DEBUG: write tag=P len={len(payload)}", file=sys.stderr)
+        self._fh.write(b"P" + len(payload).to_bytes(4, "little") + payload)
+
+    def _write_chunk(self, tag: bytes, payload: bytes) -> None:
+        payload = payload.replace(b"\n", b"\x01")
+        length = len(payload)
+        while b"\n" in length.to_bytes(4, "little"):
+            payload += b"\x00"
+            length = len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
-            p_off = len(banner)
-            print(
-                f"DEBUG: P-offset={p_off:#x} S-offset expected={p_off+21:#x}",
-                file=sys.stderr,
-            )
-            self._fh.flush()
-            with open(self._fh.name, "rb") as f:
-                data = f.read()
-            first4 = data[p_off : p_off + 4].hex()
-            print(
-                f"DEBUG: after header, first4 = {first4}",
-                file=sys.stderr,
-            )
-            print(
-                f"DEBUG: wrote P TLV (21 B) pid={pid} ppid={ppid}",
-                file=sys.stderr,
-            )
-            print(
-                f"DEBUG: header_size={self.header_size} first_token=P",
-                file=sys.stderr,
-            )
+            print(f"DEBUG: write tag={tag.decode()} len={length}", file=sys.stderr)
+        self._fh.write(tag + length.to_bytes(4, "little") + payload)
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
 
-    # expose the same api the C writer will have
-    def write_chunk(self, token: bytes, payload: bytes):
+    def write_chunk(self, token: bytes, payload: bytes) -> None:
         tag = token[:1]
-        if tag in self._buf:
+        if tag in self._payloads:
             if tag == b"D" and not payload:
-                # tracer may emit an empty D just to signal its presence.
-                # Ignore it to avoid buffering the chunk twice.
                 return
-            self._buffer_chunk(tag, payload)
+            self._payloads[tag].extend(payload)
         elif tag == b"E":
-            pass  # handled on close
-        else:
-            # ignore unknown tags for simplicity
             pass
 
     def __enter__(self):
@@ -212,10 +129,8 @@ class Writer:
             return
 
         if self.tracer is not None:
-
             def ns2ticks(ns: int) -> int:
                 return ns // 100
-
             for line, calls in self.tracer._line_hits.items():
                 self._line_hits[(0, line)] = (
                     calls,
@@ -223,148 +138,42 @@ class Writer:
                     ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                 )
 
-        import struct
-
         recs = []
         for (fid, line), (calls, inc, exc) in self._line_hits.items():
             recs.append(struct.pack("<IIIQQ", fid, line, calls, inc, exc))
-        s_payload = b"".join(recs)
-        if s_payload:
-            self._buffer_chunk(b"S", s_payload)
-        if self._stmt_records:
-            payload = self._make_data_section()
-            if os.getenv("PYNYTPROF_DEBUG"):
-                off = self._calc_start_offset(b"D")
-                self._debug_chunk_info(b"D", payload, off)
-            self._buf[b"D"] = bytearray(payload)
-        elif not self._buf[b"D"]:
-            payload = b"\x00"
-            if os.getenv("PYNYTPROF_DEBUG"):
-                off = self._calc_start_offset(b"D")
-                self._debug_chunk_info(b"D", payload, off)
-            self._buf[b"D"] = bytearray(payload)
-        if os.getenv("PYNYTPROF_DEBUG"):
-            import sys
+        if recs:
+            self._payloads[b"S"].extend(b"".join(recs))
 
-            summary = {
-                tag.decode(): len(self._buf.get(tag, b""))
-                for tag in [b"S", b"D", b"C", b"E"]
-            }
-            print("FINAL CHUNKS:", summary, file=sys.stderr)
+        if self._stmt_records and not self._payloads[b"D"]:
+            buf = bytearray()
+            for fid, line, dur in self._stmt_records:
+                buf += struct.pack("<BIIQ", 1, fid, line, dur)
+            buf.append(0)
+            self._payloads[b"D"] = buf
+        elif not self._payloads[b"D"]:
+            self._payloads[b"D"] = bytearray()
 
-        chunk_lengths = []
-        for idx, tag in enumerate([b"S", b"D", b"C", b"E"], start=1):
-            payload = self._buf.get(tag, b"")
-            payload = payload.replace(b"\n", b"\x01")
-            length = len(payload)
-            while b"\n" in length.to_bytes(4, "little"):
-                payload += b"\x00"
-                length = len(payload)
-            chunk_lengths.append(length)
-            off = self._fh.tell()
-            self._fh.write(tag)
-            self._fh.write(length.to_bytes(4, "little"))
-            self._fh.write(payload)
-            if os.getenv("PYNYTPROF_DEBUG"):
-                # Read back the first payload byte
-                self._fh.flush()
-                with open(self._fh.name, "rb") as f:
-                    f.seek(off + 5)
-                    first = f.read(1)
-                print(
-                    f"DEBUG: chunk {idx} tag={tag.decode()}   offset=0x{off:x}   "
-                    f"declared_len={len(payload)}   first_byte={first!r}",
-                    file=sys.stderr,
-                )
-        if os.getenv("PYNYTPROF_DEBUG"):
-            eof = self._fh.tell()
-            expected = self.header_size + sum(5 + l for l in chunk_lengths)
-            total_chunks = sum(chunk_lengths)
-            print(f"DEBUG: EOF at offset=0x{eof:x}", file=sys.stderr)
-            print(
-                f"DEBUG: expected_size={expected} sum_chunk_lengths={total_chunks}",
-                file=sys.stderr,
-            )
-            if eof != expected:
-                print("WARNING: file size mismatch", file=sys.stderr)
-
+        for tag in [b"S", b"D", b"C", b"E"]:
+            payload = bytes(self._payloads.get(tag, b"")) if tag != b"E" else b""
+            self._write_chunk(tag, payload)
         self._fh.close()
         self._fh = None
 
     def finalize(self) -> None:
-        """Close the file and optionally verify TLV boundaries."""
         self.close()
-        if not os.getenv("PYNYTPROF_DEBUG"):
-            return
-        fpath = str(self._path)
-        print("DEBUG: TLV parse check on", fpath)
-        with open(fpath, "rb") as fh:
-            data = fh.read()
-        banner_len = self.header_size - 21  # account for P TLV (21 bytes)
-        i = banner_len
-        chunk = 1
-        if data[i:i+1] == b"P":
-            length = int.from_bytes(data[i + 1 : i + 5], "little")
-            print(
-                f"DEBUG: chunk {chunk} tag={data[i:i+1]!r} offset=0x{i:x} len={length}"
-            )
-            i += 5 + length
-            chunk += 1
-        while i < len(data):
-            tag = data[i : i + 1]
-            if tag == b"":
-                break
-            length = int.from_bytes(data[i + 1 : i + 5], "little")
-            print(
-                f"DEBUG: chunk {chunk} tag={tag!r} offset=0x{i:x} len={length}"
-            )
-            i += 5 + length
-            chunk += 1
-        print("DEBUG: TLV parse ended at offset=0x%x" % i)
-
-    def _write_chunk(self, tag: bytes, payload: bytes) -> None:
-        data = tag[:1]
-        if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-        self._fh.write(data)
-        data = len(payload).to_bytes(4, "little")
-        if os.getenv("PYNYTPROF_DEBUG"):
-            print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-        self._fh.write(data)
-        if payload:
-            data = payload
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
 
 
-def write(
-    out_path: str,
-    files: list[tuple[int, int, int, int, str]],
-    defs: list,
-    calls: list,
-    lines: list[tuple[int, int, int, int, int]],
-    start_ns: int,
-    ticks_per_sec: int,
-) -> None:
-    """Write NYTProf file purely in Python."""
+def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec: int) -> None:
     path = Path(out_path)
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
         f.write(banner)
-        import struct, time, os, binascii
+
         pid = os.getpid()
         ppid = os.getppid()
         ts = time.time()
-        payload = struct.pack('<IId', pid, ppid, ts)
-        assert len(payload) == 16, f"P payload wrong length: {len(payload)}"
-        if os.getenv('PYNYTPROF_DEBUG'):
-            print(f"DEBUG: P-payload raw={binascii.hexlify(payload)}")
-        f.write(b'P' + payload)
-        if not files:
-            script = Path(sys.argv[0]).resolve()
-            st = script.stat()
-            files = [(0, 0x10, st.st_size, int(st.st_mtime), str(script))]
+        payload = struct.pack("<dII", ts, pid, ppid)
+        f.write(b"P" + len(payload).to_bytes(4, "little") + payload)
 
         s_payload = b"".join(
             struct.pack("<IIIQQ", fid, line, calls_v, inc // 100, exc // 100)
@@ -375,7 +184,7 @@ def write(
         d_payload = b""
         c_payload = b""
         if defs:
-            if len(defs[0]) == 3:  # simple sub table
+            if len(defs[0]) == 3:
                 d_payload = b"".join(
                     struct.pack("<II", sid, flags) + name.encode() + b"\0"
                     for sid, flags, name in defs
@@ -392,9 +201,7 @@ def write(
                     struct.pack("<IIIQQ", fid, line, sid, inc // 100, exc // 100)
                     for fid, line, sid, inc, exc in calls
                 )
-        if d_payload:
-            f.write(_chunk(b"D", d_payload))
-        if c_payload:
-            f.write(_chunk(b"C", c_payload))
-
+        f.write(_chunk(b"D", d_payload))
+        f.write(_chunk(b"C", c_payload))
         f.write(_chunk(b"E", b""))
+

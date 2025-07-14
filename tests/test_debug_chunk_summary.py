@@ -15,4 +15,4 @@ def test_debug_chunk_summary(tmp_path):
         [sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/example_script.py'],
         env=env, stderr=subprocess.PIPE, text=True
     )
-    assert 'FINAL CHUNKS:' in proc.stderr
+    assert 'DEBUG: write tag=P' in proc.stderr

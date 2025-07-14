@@ -15,6 +15,6 @@ def test_p_record_tlv_bytes(tmp_path):
     assert data[i:i+1] == b"P"
     assert data[i+1:i+5] == (16).to_bytes(4, "little")
     payload = data[i+5:i+21]
-    pid, ppid, ts = struct.unpack("<IId", payload)
+    ts, pid, ppid = struct.unpack("<dII", payload)
     assert pid == os.getpid()
     assert ppid == os.getppid()
