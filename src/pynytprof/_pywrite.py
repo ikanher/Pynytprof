@@ -111,8 +111,10 @@ class Writer:
 
         pid = os.getpid()
         ppid = os.getppid()
-        start_time_s = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", start_time_s)
+        pid_bytes = struct.pack("<I", pid)
+        ppid_bytes = struct.pack("<I", ppid)
+        nv_bytes = struct.pack("<d", time.time())
+        payload = pid_bytes + ppid_bytes + nv_bytes
         assert len(payload) == 16
         banner_len = len(banner)
         self.header_size = banner_len + 1 + 4 + len(payload)
@@ -244,8 +246,10 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
 
         pid = os.getpid()
         ppid = os.getppid()
-        ts = time.time()
-        payload = struct.pack("<II", pid, ppid) + struct.pack("<d", ts)
+        pid_bytes = struct.pack("<I", pid)
+        ppid_bytes = struct.pack("<I", ppid)
+        nv_bytes = struct.pack("<d", time.time())
+        payload = pid_bytes + ppid_bytes + nv_bytes
         assert len(payload) == 16
         f.write(b"P")
         f.write(struct.pack("<I", len(payload)))
