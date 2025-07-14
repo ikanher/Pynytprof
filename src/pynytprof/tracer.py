@@ -107,8 +107,19 @@ def _write_nytprof(out_path: Path) -> None:
         )
     w.__enter__()
     try:
-        w._stmt_records.extend(_stmt_records)
         import struct
+
+        emitted_d = False
+        if hasattr(w, "_stmt_records"):
+            w._stmt_records.extend(_stmt_records)
+            emitted_d = bool(_stmt_records)
+        elif _stmt_records:
+            d_buf = bytearray()
+            for fid, line, dur in _stmt_records:
+                d_buf += struct.pack("<BIIQ", 1, fid, line, dur)
+            d_buf.append(0)
+            w.write_chunk(b"D", bytes(d_buf))
+            emitted_d = True
 
         recs = []
         for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
@@ -126,7 +137,6 @@ def _write_nytprof(out_path: Path) -> None:
         if payload:
             w.write_chunk(b"S", payload)
 
-        emitted_d = False
         emitted_c = False
         if _calls:
             id_map = {}
