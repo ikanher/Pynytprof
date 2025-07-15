@@ -123,6 +123,7 @@ static void store_le_double(FILE *fp, double v) {
 
 static void emit_header(FILE *fp) {
     emit_banner(fp);
+    fputc('\n', fp);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
