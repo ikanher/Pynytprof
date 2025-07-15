@@ -22,6 +22,6 @@ def test_exactly_one_p_record(tmp_path):
     assert data[idx:idx+1] == b'P'
     pid_bytes = data[idx+1:idx+5]
     assert pid_bytes == p.pid.to_bytes(4, 'little')
-    s_off = data.index(b'S')
+    s_off = data.index(b'S', idx + 17)
     assert s_off == idx + 17
 

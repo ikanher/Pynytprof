@@ -65,6 +65,12 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
     return tok[:1] + len(payload).to_bytes(4, "little") + payload
 
 
+def _debug_write(fh, data: bytes) -> None:
+    if os.getenv("PYNYTPROF_DEBUG"):
+        print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+    fh.write(data)
+
+
 class Writer:
     def __init__(
         self,
@@ -102,10 +108,10 @@ class Writer:
             ppid = os.getppid()
         if tstamp is None:
             tstamp = time.time()
-        self._fh.write(b"P")
-        self._fh.write(struct.pack("<I", pid))
-        self._fh.write(struct.pack("<I", ppid))
-        self._fh.write(struct.pack("<d", tstamp))
+        _debug_write(self._fh, b"P")
+        _debug_write(self._fh, struct.pack("<I", pid))
+        _debug_write(self._fh, struct.pack("<I", ppid))
+        _debug_write(self._fh, struct.pack("<d", tstamp))
 
     def _write_header(self) -> None:
         banner = _make_ascii_header(self._start_ns)
@@ -176,7 +182,10 @@ class Writer:
                     f"       first16={first16} last16={last16}",
                     file=sys.stderr,
                 )
-        self._fh.write(tag + length.to_bytes(4, "little") + payload)
+        _debug_write(self._fh, tag)
+        _debug_write(self._fh, length.to_bytes(4, "little"))
+        if payload:
+            _debug_write(self._fh, payload)
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
