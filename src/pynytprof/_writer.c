@@ -141,7 +141,6 @@ static void emit_header(FILE *fp) {
     clock_gettime(CLOCK_REALTIME, &ts);
     double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
     fputc('P', fp);
-    store_le32(fp, 16); /* payload length */
     store_le32(fp, (uint32_t)getpid());
     store_le32(fp, (uint32_t)getppid());
     store_le_double(fp, t);
