@@ -97,11 +97,11 @@ static size_t emit_banner(FILE *fp, int *hdr_size) {
                        "!nameanonsubs=1\n"
                        "!calls=1\n"
                        "!evals=0\n"
-                       ":header_size=00000\n",
+                       ":header_size={SIZE:05d}\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
                        PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
-    *hdr_size = len + 1;
-    char *p = strstr(buf, ":header_size=00000");
+    *hdr_size = len - 4;
+    char *p = strstr(buf, "{SIZE:05d}");
     if (p) {
         p += strlen(":header_size=");
         char num[6];

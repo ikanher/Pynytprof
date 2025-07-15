@@ -55,7 +55,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         "!nameanonsubs=1",
         "!calls=1",
         "!evals=0",
-        ":header_size=00000",
+        ":header_size={SIZE:05d}",
     ]
     hdr = ("\n".join(lines) + "\n").encode()
     assert b"\0" not in hdr
@@ -97,6 +97,7 @@ class Writer:
             b"D": bytearray(),
             b"C": bytearray(),
         }
+        self._offset = 0
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
@@ -121,11 +122,14 @@ class Writer:
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
-        self._offset = len(banner)
-        self.header_size = self._offset + 1
-        banner = banner.replace(b":header_size=00000", f":header_size={self.header_size:05d}".encode())
+
+        size = len(banner) - len(b"{SIZE:05d}") + 6
+        banner = banner.replace(b"{SIZE:05d}", f"{size:05d}".encode())
+        self.header_size = size
         self._fh.write(banner)
+        self._offset += len(banner)
         self._fh.write(b"\n")
+        self._offset += 1
 
         pid = os.getpid()
         ppid = os.getppid()
@@ -274,8 +278,8 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
     path = Path(out_path)
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
-        header_size = len(banner) + 1
-        banner = banner.replace(b":header_size=00000", f":header_size={header_size:05d}".encode())
+        header_size = len(banner) - len(b"{SIZE:05d}") + 6
+        banner = banner.replace(b"{SIZE:05d}", f"{header_size:05d}".encode())
         f.write(banner)
         f.write(b"\n")
 
