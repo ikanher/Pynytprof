@@ -20,7 +20,7 @@ def test_p_length_is_16(tmp_path, writer):
     tracer.profile_command("pass", out_path=out)
     monkeypatch.undo()
     data = out.read_bytes()
-    idx = data.index(b"\nP") + 1
+    idx = data.index(b"\n\nP") + 2
     assert data[idx:idx+1] == b"P"
     pid = int.from_bytes(data[idx+1:idx+5], "little")
     assert pid == os.getpid()

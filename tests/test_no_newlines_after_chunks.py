@@ -17,7 +17,7 @@ def test_no_newlines_after_chunks(tmp_path, monkeypatch):
         'tests/example_script.py',
     ], env=env)
     data = out.read_bytes()
-    off = data.index(b'\nP') + 1
+    off = data.index(b'\n\nP') + 2
     while off < len(data):
         length = int.from_bytes(data[off + 1:off + 5], 'little')
         end = off + 5 + length

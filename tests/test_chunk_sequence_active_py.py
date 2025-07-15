@@ -16,7 +16,7 @@ def test_active_writer_chunk_sequence(tmp_path, monkeypatch):
         env=env,
     )
     data = out.read_bytes()
-    idx = data.index(b"\nP") + 1
+    idx = data.index(b"\n\nP") + 2
     tags = []
     off = idx
     while off < len(data):

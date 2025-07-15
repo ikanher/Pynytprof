@@ -19,7 +19,7 @@ def test_single_lf_before_p(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b'\nP')
-    assert data[idx:idx+2] == b'\nP'
-    assert b'\n\nP' not in data
+    idx = data.index(b'\n\nP')
+    assert data[idx:idx+3] == b'\n\nP'
+    assert b'\n\n\nP' not in data
 

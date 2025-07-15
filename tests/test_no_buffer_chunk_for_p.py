@@ -11,9 +11,9 @@ def test_no_buffer_chunk_for_p(tmp_path):
     with Writer(str(out)):
         pass
     data = out.read_bytes()
-    idx = data.index(b"\nP") + 1
+    idx = data.index(b"\n\nP") + 2
     assert data[idx:idx+1] == b"P"
     pid_bytes = os.getpid().to_bytes(4, "little")
     assert data[idx+1:idx+5] == pid_bytes
-    assert data.count(b"\nP") == 1
+    assert data.count(b"\n\nP") == 1
 

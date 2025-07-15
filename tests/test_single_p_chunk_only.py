@@ -19,7 +19,7 @@ def test_only_one_p_record_and_no_length(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    positions = [i + 1 for i in range(len(data)) if data[i:i+2] == b"\nP"]
+    positions = [i + 2 for i in range(len(data)) if data[i:i+3] == b"\n\nP"]
     assert len(positions) == 1, f"expected 1 P chunk, found {len(positions)}"
     idx = positions[0]
     pid = int.from_bytes(data[idx+1:idx+5], "little")

@@ -121,6 +121,7 @@ class Writer:
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
         self._fh.write(banner)
+        self._fh.write(b"\n")
 
         pid = os.getpid()
         ppid = os.getppid()
@@ -132,9 +133,9 @@ class Writer:
         )
         assert len(payload) == 16
         banner_len = len(banner)
-        self.header_size = banner_len + 17
+        self.header_size = banner_len + 1 + 17
         if os.getenv("PYNYTPROF_DEBUG"):
-            p_offset = banner_len
+            p_offset = banner_len + 1
             s_offset = p_offset + 17
             print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
             print(
@@ -261,6 +262,7 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
         f.write(banner)
+        f.write(b"\n")
 
         pid = os.getpid()
         ppid = os.getppid()
