@@ -55,6 +55,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
         "!nameanonsubs=1",
         "!calls=1",
         "!evals=0",
+        ":header_size=00000",
     ]
     hdr = ("\n".join(lines) + "\n").encode()
     assert b"\0" not in hdr
@@ -120,6 +121,9 @@ class Writer:
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
+        self._offset = len(banner)
+        self.header_size = self._offset + 1
+        banner = banner.replace(b":header_size=00000", f":header_size={self.header_size:05d}".encode())
         self._fh.write(banner)
         self._fh.write(b"\n")
 
@@ -133,9 +137,8 @@ class Writer:
         )
         assert len(payload) == 16
         banner_len = len(banner)
-        self.header_size = banner_len + 1 + 17
         if os.getenv("PYNYTPROF_DEBUG"):
-            p_offset = banner_len + 1
+            p_offset = self.header_size
             s_offset = p_offset + 17
             print(f"DEBUG: P-payload raw={payload.hex()}", file=sys.stderr)
             print(
@@ -271,6 +274,8 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
     path = Path(out_path)
     with path.open("wb") as f:
         banner = _make_ascii_header(start_ns)
+        header_size = len(banner) + 1
+        banner = banner.replace(b":header_size=00000", f":header_size={header_size:05d}".encode())
         f.write(banner)
         f.write(b"\n")
 
