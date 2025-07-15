@@ -60,6 +60,7 @@ def _make_ascii_header(start_ns: int) -> bytes:
     size_line_len = len(":header_size=00000\n")
     header_size = len(static) + size_line_len + 1
     banner = static + f":header_size={header_size:05d}\n\n"
+
     hdr = banner.encode()
     assert b"\0" not in hdr
     return hdr
