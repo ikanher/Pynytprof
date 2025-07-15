@@ -156,9 +156,19 @@ class Writer:
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         payload = payload.replace(b"\n", b"\x01")
         length = len(payload)
-        while b"\n" in length.to_bytes(4, "little"):
+        lb = length.to_bytes(4, "little")
+        while b"\n" in lb:
             payload += b"\x00"
-            length = len(payload)
+            length += 1
+            lb = length.to_bytes(4, "little")
+        if tag in (b"S", b"C"):
+            rec_size = struct.calcsize("<IIIQQ")
+            rem = length % rec_size
+            if rem:
+                pad = rec_size - rem
+                payload += b"\x00" * pad
+                length += pad
+                lb = length.to_bytes(4, "little")
         if os.getenv("PYNYTPROF_DEBUG"):
             offset = self._fh.tell()
             from hashlib import sha256
