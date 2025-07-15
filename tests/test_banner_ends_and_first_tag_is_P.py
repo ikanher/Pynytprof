@@ -18,5 +18,5 @@ def test_banner_ends_and_first_tag_is_P(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b'\nP')
-    assert data[idx:idx+2] == b"\nP"
+    idx = data.index(b'\n\nP')
+    assert data[idx:idx+3] == b"\n\nP"

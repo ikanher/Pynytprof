@@ -22,7 +22,7 @@ def test_p_chunk_has_no_length_word(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    idx = data.index(b"\nP") + 1
+    idx = data.index(b"\n\nP") + 2
     pid = int.from_bytes(data[idx + 1 : idx + 5], "little")
     assert pid == p.pid, (
         "Found length word instead of PID — P chunk layout is wrong"

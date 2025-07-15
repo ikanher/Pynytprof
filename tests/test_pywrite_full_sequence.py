@@ -15,7 +15,7 @@ def test_pywrite_exact_sequence(tmp_path, monkeypatch):
         env=env, stderr=subprocess.PIPE, text=True
     )
     data = out.read_bytes()
-    idx = data.index(b'\nP') + 1
+    idx = data.index(b'\n\nP') + 2
     tags = []
     seen = {}
     off = idx

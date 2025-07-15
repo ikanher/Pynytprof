@@ -17,6 +17,6 @@ def test_only_one_lf_before_P(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    i = data.index(b'\nP')
-    assert data[i:i+2] == b'\nP'
-    assert i == data.index(b'\nP')  # ensure no earlier instance
+    i = data.index(b'\n\nP')
+    assert data[i:i+3] == b'\n\nP'
+    assert i == data.index(b'\n\nP')  # ensure no earlier instance
