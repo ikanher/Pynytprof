@@ -24,9 +24,12 @@ def test_header_size_points_to_P(tmp_path, writer):
         "pass",
     ], env=env)
     data = out.read_bytes()
-    header_txt = data.split(b"\n\n", 1)[0].decode()
+    header, _ = data.split(b"\n\n", 1)
+    header_txt = header.decode()
     m = re.search(r":header_size=(\d+)", header_txt)
     assert m, "header_size line missing"
     declared = int(m.group(1))
-    actual = data.index(b"\n\nP") + 1
-    assert declared == actual, f"header_size {declared} should equal first P offset {actual}"
+    actual = len(header) + 2
+    assert declared == actual, (
+        f"header_size {declared} should equal blank-line offset {actual}"
+    )
