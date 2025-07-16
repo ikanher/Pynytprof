@@ -121,8 +121,10 @@ class Writer:
         static_banner = "\n".join(lines) + "\n"
 
         static_bytes = static_banner.encode()
-        size_line_placeholder = b":header_size=00000\n"
-        header_size = len(static_bytes) + len(size_line_placeholder)
+        size_line = b":header_size=00000\n"
+        header = static_bytes + size_line
+        blank = b"\n"
+        header_size = len(header) + 1
         size_line = f":header_size={header_size:05d}\n".encode()
         banner = static_bytes + size_line
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -131,10 +133,8 @@ class Writer:
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
 
         self._fh.write(banner)
-        self._offset += len(banner)
-
-        self._fh.write(b"\n")
-        self._offset += 1
+        self._fh.write(blank)
+        self._offset = header_size
 
         self._write_raw_P()
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -298,7 +298,8 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         static_hdr = "\n".join(lines_hdr) + "\n"
         static_bytes = static_hdr.encode()
         placeholder = b":header_size=00000\n"
-        header_size = len(static_bytes) + len(placeholder)
+        header = static_bytes + placeholder
+        header_size = len(header) + 1
         size_line = f":header_size={header_size:05d}\n".encode()
         banner = static_bytes + size_line
         f.write(banner)

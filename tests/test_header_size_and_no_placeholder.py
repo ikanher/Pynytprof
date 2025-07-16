@@ -33,7 +33,7 @@ def test_header_size_and_no_placeholder(tmp_path):
     declared = int(m.group(1))
 
     # header returned by split() already includes the final '\n'
-    actual = len(header) + 1
+    actual = len(header) + 2   # include the single blank-line LF
     assert declared == actual, (
         f"header_size={declared}, but header length={actual}"
     )
