@@ -34,5 +34,7 @@ def test_header_size_points_to_P(tmp_path, writer):
     m = re.search(r":header_size=(\d+)", header_txt)
     assert m, "header_size line missing"
     declared = int(m.group(1))
-    actual = len(header)
-    assert declared == actual, f"header_size {declared} should equal header length {actual}"
+    p_offset = len(header) + 2
+    assert declared == p_offset, (
+        f"header_size {declared} should equal P offset {p_offset}"
+    )

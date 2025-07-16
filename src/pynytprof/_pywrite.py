@@ -120,9 +120,11 @@ class Writer:
         ]
         static = "\n".join(lines) + "\n"
 
-        header_size = len(static) + 18
+        static_bytes = static.encode()
+        placeholder = b":header_size=00000\n"
+        header_size = len(static_bytes) + len(placeholder) + 1
         size_line = f":header_size={header_size:05d}\n".encode()
-        banner = static.encode() + size_line + b"\n"
+        banner = static_bytes + size_line + b"\n"
         if os.getenv("PYNYTPROF_DEBUG"):
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
@@ -291,9 +293,11 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
             "!evals=0",
         ]
         static_hdr = "\n".join(lines_hdr) + "\n"
-        header_size = len(static_hdr) + 18
+        static_bytes = static_hdr.encode()
+        placeholder = b":header_size=00000\n"
+        header_size = len(static_bytes) + len(placeholder) + 1
         size_line = f":header_size={header_size:05d}\n".encode()
-        banner = static_hdr.encode() + size_line + b"\n"
+        banner = static_bytes + size_line + b"\n"
         f.write(banner)
 
         pid = os.getpid()
