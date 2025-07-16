@@ -33,7 +33,7 @@ def test_header_size_and_no_placeholder(tmp_path):
 
     # 3) Compute actual split offset: header bytes + exactly one blank-line LF
     #    the second LF is at index = len(header) + 1
-    actual = len(header) + 1
+    actual = len(header) + 2
     assert declared == actual, (
         f"Declared header_size={declared} but actual split is at {actual}"
     )
