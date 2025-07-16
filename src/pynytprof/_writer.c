@@ -99,9 +99,9 @@ static unsigned emit_banner(FILE *fp) {
                        "!evals=0\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
                        PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
-    unsigned header_size = (unsigned)len + (unsigned)strlen(":header_size=00000\n") + 1;
-    fprintf(fp, "%s:header_size=%05u\n\n", buf, header_size);
-    return header_size;
+    unsigned size = strlen(buf) + 18;            /* bytes before blank line */
+    fprintf(fp, "%s:header_size=%05u\n\n", buf, size);
+    return size;
 }
 
 static void put_double_le(unsigned char *p, double v) {
