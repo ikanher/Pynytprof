@@ -4,6 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def test_header_size_and_no_placeholder(tmp_path):
     env = {
         **os.environ,
@@ -31,12 +32,10 @@ def test_header_size_and_no_placeholder(tmp_path):
     assert m, "Missing ':header_size=' line in banner"
     declared = int(m.group(1))
 
-    # 3) Compute actual split offset: header bytes + exactly one blank-line LF
-    #    the second LF is at index = len(header) + 1
-    actual = len(header) + 2
-    assert declared == actual, (
-        f"Declared header_size={declared} but actual split is at {actual}"
-    )
+    # 3) header_size should equal the banner length before the blank line
+    #    (i.e. byte position of first LF of the blank line)
+    actual = len(header)
+    assert declared == actual, f"Declared header_size={declared} but header length is {actual}"
 
     # 4) Sanity: first payload byte must be 'P'
     assert payload.startswith(b"P"), "Binary payload does not start with 'P' tag"

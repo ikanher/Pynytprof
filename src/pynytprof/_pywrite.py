@@ -67,7 +67,9 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
-    def _write_raw_P(self, pid: int | None = None, ppid: int | None = None, tstamp: float | None = None) -> None:
+    def _write_raw_P(
+        self, pid: int | None = None, ppid: int | None = None, tstamp: float | None = None
+    ) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
         if pid is None:
@@ -117,10 +119,10 @@ class Writer:
             "!evals=0",
         ]
         static = "\n".join(lines) + "\n"
-        size_of_static = len(static.encode())
-        header_size = size_of_static + len(":header_size=00000\n") + 1
 
-        banner = _make_ascii_header(static, header_size)
+        header_size = len(static) + 18
+        size_line = f":header_size={header_size:05d}\n".encode()
+        banner = static.encode() + size_line + b"\n"
         if os.getenv("PYNYTPROF_DEBUG"):
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
@@ -129,15 +131,9 @@ class Writer:
         self._fh.write(banner)
         self._offset += len(banner)
 
-        pid = os.getpid()
-        ppid = os.getppid()
-        tstamp = time.time()
-        self._write_raw_P(pid, ppid, tstamp)
+        self._write_raw_P()
         if os.getenv("PYNYTPROF_DEBUG"):
-            print(
-                f"DEBUG: wrote raw P record (17 B) pid={pid} ppid={ppid}",
-                file=sys.stderr,
-            )
+            print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
             print(
                 f"DEBUG: header_size={header_size} first_token=P",
                 file=sys.stderr,
@@ -295,19 +291,15 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
             "!evals=0",
         ]
         static_hdr = "\n".join(lines_hdr) + "\n"
-        size_of_static = len(static_hdr.encode())
-        header_size = size_of_static + len(":header_size=00000\n") + 1
-        banner = _make_ascii_header(static_hdr, header_size)
+        header_size = len(static_hdr) + 18
+        size_line = f":header_size={header_size:05d}\n".encode()
+        banner = static_hdr.encode() + size_line + b"\n"
         f.write(banner)
 
         pid = os.getpid()
         ppid = os.getppid()
         tstamp = time.time()
-        payload = (
-            struct.pack("<I", pid)
-            + struct.pack("<I", ppid)
-            + struct.pack("<d", tstamp)
-        )
+        payload = struct.pack("<I", pid) + struct.pack("<I", ppid) + struct.pack("<d", tstamp)
         assert len(payload) == 16
         f.write(b"P")
         f.write(payload)
