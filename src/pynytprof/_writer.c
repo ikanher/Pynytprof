@@ -67,7 +67,7 @@ static const char *platform_name(void) {
 
 static long basetime;
 
-static size_t emit_banner(FILE *fp, unsigned *hdr_size) {
+static unsigned emit_banner(FILE *fp) {
     char buf[1024];
     int len = snprintf(buf, sizeof(buf),
                        "NYTProf %d %d\n"
@@ -99,12 +99,9 @@ static size_t emit_banner(FILE *fp, unsigned *hdr_size) {
                        "!evals=0\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
                        PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
-    unsigned static_len = (unsigned)len;
-    *hdr_size = static_len + (unsigned)strlen(":header_size=00000\n");
-    len += snprintf(buf + len, sizeof(buf) - len,
-                    ":header_size=%05u\n\n", *hdr_size);
-    fwrite(buf, 1, len, fp);
-    return len;
+    unsigned size = (unsigned)len + (unsigned)strlen(":header_size=00000\n") + 1;
+    fprintf(fp, "%s:header_size=%05u\n\n", buf, size);
+    return size;
 }
 
 static void put_double_le(unsigned char *p, double v) {
@@ -129,8 +126,7 @@ static void store_le_double(FILE *fp, double v) {
 }
 
 static void emit_header(FILE *fp) {
-    unsigned hdr_size = 0;
-    emit_banner(fp, &hdr_size);
+    unsigned hdr_size = emit_banner(fp);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
