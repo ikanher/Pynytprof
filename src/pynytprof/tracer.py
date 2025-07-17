@@ -119,19 +119,34 @@ def _write_nytprof(out_path: Path) -> None:
 
         emitted_d = False
         d_payload = b""
+
+        has_register = hasattr(w, "_register_file")
+        if has_register:
+            fid = w._register_file(str(_script_path))
+        else:
+            fid = 0
+            try:
+                st = os.stat(_script_path)
+                f_payload = (
+                    struct.pack("<IIII", fid, 0x10, st.st_size, int(st.st_mtime))
+                    + str(_script_path).encode()
+                    + b"\0"
+                )
+                w.write_chunk(b"F", f_payload)
+            except OSError:
+                pass
+
         if hasattr(w, "_stmt_records"):
             w._stmt_records.extend(_stmt_records)
             emitted_d = bool(_stmt_records)
         elif _stmt_records:
             buf = bytearray()
-            fid = w._register_file(str(_script_path))
             for _, line, dur in _stmt_records:
                 buf += struct.pack("<BIIQ", 1, fid, line, dur)
             buf.append(0)
             d_payload = bytes(buf)
             emitted_d = True
 
-        fid = w._register_file(str(_script_path))
         recs = []
         for (_, line), (calls, inc, exc) in sorted(_line_hits.items()):
             recs.append(
