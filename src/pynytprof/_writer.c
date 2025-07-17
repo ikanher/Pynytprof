@@ -75,7 +75,7 @@ static unsigned emit_banner(FILE *fp) {
                        ":basetime=%ld\n"
                        ":application=-e\n"
                        ":perl_version=%s\n"
-                       ":nv_size=%zu\n"
+                       ":nv_size=8\n"
                        ":clock_mod=cpu\n"
                        ":ticks_per_sec=10000000\n"
                        ":osname=%s\n"
@@ -98,7 +98,7 @@ static unsigned emit_banner(FILE *fp) {
                        "!calls=1\n"
                        "!evals=0\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
-                       PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
+                       PY_VERSION, platform_name(), sysconf(_SC_CLK_TCK));
     unsigned hdr_size = strlen(buf) + 19; /* include size line */
     fprintf(fp, "%s:header_size=%05u\n", buf, hdr_size);
     return hdr_size;
