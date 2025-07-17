@@ -66,6 +66,7 @@ class Writer:
         }
         self._file_ids: dict[str, int] = {}
         self._next_fid = 1
+        self._register_file(self.script_path)
         self._strings: dict[str, int] = {}
         self._offset = 0
         if os.getenv("PYNYTPROF_DEBUG"):
