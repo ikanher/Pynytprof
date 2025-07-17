@@ -126,23 +126,13 @@ def read(path: str) -> dict:
             start, pid, ppid = struct.unpack_from("<QII", payload, 0)
             result["attrs"].update({"start_time": start, "pid": pid, "ppid": ppid})
         elif tok == "F":
+            if length % 8 != 0:
+                raise ValueError("bad F record")
             p = 0
             while p < length:
-                if p + 16 > length:
-                    raise ValueError("bad F record")
-                fid, flags, size, mtime = struct.unpack_from("<IIII", payload, p)
-                p += 16
-                end = payload.find(b"\0", p)
-                if end == -1 or end >= length:
-                    raise ValueError("bad F path")
-                path_str = payload[p:end].decode()
-                p = end + 1
-                result["files"][fid] = {
-                    "path": path_str,
-                    "flags": flags,
-                    "size": size,
-                    "mtime": mtime,
-                }
+                fid, stridx = struct.unpack_from("<II", payload, p)
+                result["files"][fid] = {"string_index": stridx}
+                p += 8
             if p != length:
                 raise ValueError("bad F length")
         elif tok == "S":
