@@ -28,5 +28,5 @@ def test_active_writer_chunk_sequence(tmp_path, monkeypatch):
             continue
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length
-    assert tags == [b"P", b"S", b"D", b"C", b"E"], f"Got {tags!r}"
+    assert tags == [b"P", b"S", b"F", b"D", b"C", b"E"], f"Got {tags!r}"
 

@@ -19,6 +19,8 @@ def test_D_chunk_contains_records(tmp_path):
     idx += 17
     length = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + length
+    length = int.from_bytes(data[idx+1:idx+5],'little')
+    idx += 5 + length
     assert data[idx:idx+1]==b'D'
     dlen = int.from_bytes(data[idx+1:idx+5],'little')
     assert dlen > 1, f"D chunk too small ({dlen}); no records collected"

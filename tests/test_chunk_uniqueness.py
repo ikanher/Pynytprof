@@ -29,4 +29,4 @@ def test_chunk_uniqueness(tmp_path):
             continue
         if m := pattern.search(line):
             tags.append(m.group(1))
-    assert tags == ['P', 'S', 'D', 'C', 'E']
+    assert tags == ['P', 'S', 'F', 'D', 'C', 'E']
