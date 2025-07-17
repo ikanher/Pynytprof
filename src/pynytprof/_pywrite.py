@@ -104,6 +104,17 @@ class Writer:
         _debug_write(self._fh, struct.pack("<d", tstamp))
         self._offset += 17
 
+    def _write_F_chunk(self) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        payload = b"".join(
+            struct.pack("<II", fid, self._string_index(path))
+            for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1])
+        )
+        self._write_chunk(b"F", payload)
+        self._offset += 5 + len(payload)
+        self._payloads[b"F"] = bytearray()
+
     def _write_header(self) -> None:
         timestamp = format_datetime(datetime.datetime.utcnow())
         basetime = int(self._start_ns // 1_000_000_000)
@@ -269,24 +280,23 @@ class Writer:
             summary["E"] = 0
             print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
-        if self._file_ids and not self._payloads[b"F"]:
-            f_buf = bytearray()
-            for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1]):
-                try:
-                    st = os.stat(path)
-                    size = st.st_size
-                    mtime = int(st.st_mtime)
-                except OSError:
-                    size = 0
-                    mtime = 0
-                flags = 0x10
-                f_buf += struct.pack("<IIII", fid, flags, size, mtime)
-                f_buf += path.encode() + b"\0"
-            self._payloads[b"F"] = f_buf
+        # emit S chunk first
+        s_payload = bytes(self._payloads.get(b"S", b""))
+        self._write_chunk(b"S", s_payload)
+        self._offset += 5 + len(s_payload)
 
-        for tag in [b"S", b"F", b"D", b"C", b"E"]:
+        # emit F chunk built from registered files
+        if self._file_ids and not self._payloads[b"F"]:
+            self._write_F_chunk()
+        else:
+            f_payload = bytes(self._payloads.get(b"F", b""))
+            self._write_chunk(b"F", f_payload)
+            self._offset += 5 + len(f_payload)
+
+        for tag in [b"D", b"C", b"E"]:
             payload = bytes(self._payloads.get(tag, b"")) if tag != b"E" else b""
             self._write_chunk(tag, payload)
+            self._offset += 5 + len(payload)
         self._fh.close()
         self._fh = None
 
