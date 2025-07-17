@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import subprocess, sys, os, struct
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def test_schunk(tmp_path, writer):
         env=env,
     )
     data = out.read_bytes()
-    end = data.index(b"\n\nP") + 2
+    end = get_chunk_start(data)
     chunks = data[end:]
     tokens = []
     off = 0

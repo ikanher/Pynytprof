@@ -18,4 +18,4 @@ def test_first_token_is_P(tmp_path):
     data = out.read_bytes()
     cutoff = get_chunk_start(data)
     assert data[cutoff] == 0x50  # 'P'
-    assert data[cutoff - 1] == 0x0A  # banner ends with a blank line
+    assert data[cutoff - 1] == 0x0A  # banner ends with single newline

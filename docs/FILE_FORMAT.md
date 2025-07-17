@@ -10,8 +10,8 @@ layered later.
 1  ASCII banner (text header)
 ──────────────────────────────────────────────────────────────────────
 
-Each line ends in a single `\n`. A blank line follows the banner before the
-binary stream begins. Format:
+Each line ends in a single `\n`. The binary stream begins immediately after the
+last banner line. Format:
 
 ```text
 NYTProf <major> <minor>\n

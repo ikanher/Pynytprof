@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os, subprocess, sys
 from pathlib import Path
 import pytest
@@ -19,7 +20,7 @@ def test_p_record_length(tmp_path):
         "pass",
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b"\n\nP") + 2
+    idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
     assert data[idx+17:idx+18] in (b"S", b"C")
 

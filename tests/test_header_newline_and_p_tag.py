@@ -1,5 +1,6 @@
 import os, subprocess, sys
 from pathlib import Path
+from tests.conftest import get_chunk_start
 
 
 def test_exactly_two_lf_before_p(tmp_path):
@@ -10,15 +11,15 @@ def test_exactly_two_lf_before_p(tmp_path):
                           "-o", str(out), "-e", "pass"], env=env)
     p.wait()
     data = out.read_bytes()
-    idx_p = data.index(b'\n\nP') + 2  # start of raw P record
+    idx_p = get_chunk_start(data)  # start of raw P record
     # Count consecutive LF bytes immediately before 'P'
     lf_count = 0
     i = idx_p - 1
     while data[i] == 0x0A:
         lf_count += 1
         i -= 1
-    assert lf_count == 2, (
-        f"expected exactly 2 LF before 'P', found {lf_count}"
+    assert lf_count == 1, (
+        f"expected exactly 1 LF before 'P', found {lf_count}"
     )
     # First 4 payload bytes must be the real PID, not length=16
     pid = int.from_bytes(data[idx_p+1:idx_p+5], 'little')

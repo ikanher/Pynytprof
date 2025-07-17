@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os, subprocess, sys
 from pathlib import Path
 
@@ -14,7 +15,7 @@ def test_only_five_top_level_chunks(tmp_path, monkeypatch):
         'tests/example_script.py'
     ])
     data = out.read_bytes()
-    cutoff = data.index(b'\n\nP') + 2
+    cutoff = get_chunk_start(data)
     tags = []
     off = cutoff
     while off < len(data):

@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 from pathlib import Path, PurePosixPath
 import subprocess, os, sys, struct
 
@@ -13,7 +14,7 @@ def test_py_writer_chunks(tmp_path):
         },
     )
     data = out.read_bytes()
-    end = data.index(b"\n\nP") + 2
+    end = get_chunk_start(data)
     chunks = data[end:]
     tokens = []
     off = 0

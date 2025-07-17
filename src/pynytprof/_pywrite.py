@@ -82,6 +82,7 @@ class Writer:
         _debug_write(self._fh, struct.pack("<I", pid))
         _debug_write(self._fh, struct.pack("<I", ppid))
         _debug_write(self._fh, struct.pack("<d", tstamp))
+        self._offset += 17
 
     def _write_header(self) -> None:
         try:
@@ -122,9 +123,7 @@ class Writer:
 
         static_bytes = static_banner.encode()
         size_line = b":header_size=00000\n"
-        header = static_bytes + size_line
-        blank = b"\n"
-        header_size = len(header) + 1
+        header_size = len(static_bytes) + len(size_line)
         size_line = f":header_size={header_size:05d}\n".encode()
         banner = static_bytes + size_line
         if os.getenv("PYNYTPROF_DEBUG"):
@@ -133,7 +132,6 @@ class Writer:
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
 
         self._fh.write(banner)
-        self._fh.write(blank)
         self._offset = header_size
 
         self._write_raw_P()

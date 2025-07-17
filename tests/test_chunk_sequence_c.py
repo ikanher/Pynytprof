@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 def test_c_writer_chunk_sequence(tmp_path):
     import subprocess, sys, os
     from pathlib import Path
@@ -9,7 +10,7 @@ def test_c_writer_chunk_sequence(tmp_path):
     }
     subprocess.check_call([sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"], env=env)
     data = out.read_bytes()
-    cutoff = data.index(b"\n\nP") + 2
+    cutoff = get_chunk_start(data)
     tokens = []
     off = cutoff
     while off < len(data):

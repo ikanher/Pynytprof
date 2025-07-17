@@ -18,5 +18,9 @@ def test_banner_ends_and_first_tag_is_P(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b'\n\nP')
-    assert data[idx:idx+3] == b"\n\nP"
+    import re
+    m = re.search(rb":header_size=(\d+)\n", data)
+    p_off = int(m.group(1))
+    assert data[p_off - 1] == 0x0A
+    assert data[p_off - 2] != 0x0A
+    assert data[p_off:p_off + 1] == b"P"

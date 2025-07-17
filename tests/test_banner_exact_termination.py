@@ -16,7 +16,7 @@ def test_banner_ends_with_single_newline(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    idx = data.find(b"\n\nP")
-    assert idx != -1, "Did not find \\n\nP"
-    next_bytes = data[idx:idx+3]
-    assert next_bytes == b"\n\nP", f"Expected exactly '\\n\nP', got {next_bytes}"
+    import re
+    m = re.search(rb":header_size=(\d+)\n", data)
+    off = int(m.group(1))
+    assert data[off - 1] == 0x0A and data[off - 2] != 0x0A

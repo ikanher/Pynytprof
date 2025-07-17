@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start, parse_chunks
 import os, subprocess, sys, struct
 from pathlib import Path
 
@@ -19,9 +20,10 @@ def test_only_one_p_record_and_no_length(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    positions = [i + 2 for i in range(len(data)) if data[i:i+3] == b"\n\nP"]
-    assert len(positions) == 1, f"expected 1 P chunk, found {len(positions)}"
-    idx = positions[0]
-    pid = int.from_bytes(data[idx+1:idx+5], "little")
+    idx = get_chunk_start(data)
+    chunks = parse_chunks(data[idx:])
+    assert list(chunks.keys())[0] == "P" and len(chunks) >= 1
+    assert chunks["P"]["offset"] == 0
+    pid = int.from_bytes(chunks["P"]["payload"][:4], "little")
     assert pid == p.pid, "P chunk still has length word!"
 

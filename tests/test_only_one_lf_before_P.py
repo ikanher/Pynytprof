@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os
 import subprocess
 import sys
@@ -17,6 +18,6 @@ def test_only_one_lf_before_P(tmp_path):
         '-e', 'pass',
     ], env=env)
     data = out.read_bytes()
-    i = data.index(b'\n\nP')
-    assert data[i:i+3] == b'\n\nP'
-    assert i == data.index(b'\n\nP')  # ensure no earlier instance
+    i = get_chunk_start(data)
+    assert data[i - 1] == 0x0A
+    assert data[i - 2] != 0x0A

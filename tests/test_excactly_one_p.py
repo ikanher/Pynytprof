@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import subprocess, sys, struct, os, tempfile, pathlib
 
 def test_exactly_one_p_record(tmp_path):
@@ -18,7 +19,7 @@ def test_exactly_one_p_record(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    idx = data.index(b'\n\nP') + 2
+    idx = get_chunk_start(data)
     assert data[idx:idx+1] == b'P'
     pid_bytes = data[idx+1:idx+5]
     assert pid_bytes == p.pid.to_bytes(4, 'little')
