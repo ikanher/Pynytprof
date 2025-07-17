@@ -99,7 +99,9 @@ def _emit_p(writer: Writer) -> None:
 
 
 def _write_nytprof(out_path: Path) -> None:
-    w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
+    w = Writer(
+        str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC, script_path=str(_script_path)
+    )
     if os.environ.get("PYNYTPROF_DEBUG"):
         print(
             f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
@@ -116,14 +118,16 @@ def _write_nytprof(out_path: Path) -> None:
             emitted_d = bool(_stmt_records)
         elif _stmt_records:
             buf = bytearray()
-            for fid, line, dur in _stmt_records:
+            fid = w._register_file(str(_script_path))
+            for _, line, dur in _stmt_records:
                 buf += struct.pack("<BIIQ", 1, fid, line, dur)
             buf.append(0)
             d_payload = bytes(buf)
             emitted_d = True
 
+        fid = w._register_file(str(_script_path))
         recs = []
-        for (fid, line), (calls, inc, exc) in sorted(_line_hits.items()):
+        for (_, line), (calls, inc, exc) in sorted(_line_hits.items()):
             recs.append(
                 struct.pack(
                     "<IIIQQ",

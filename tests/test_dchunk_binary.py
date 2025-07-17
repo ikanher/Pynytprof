@@ -28,6 +28,8 @@ def test_dchunk_binary(tmp_path):
     idx += 17  # skip P record
     length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     idx += 5 + length
+    length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
+    idx += 5 + length
     assert data[idx : idx + 1] == b'D'
     dlen = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     payload = data[idx + 5 : idx + 5 + dlen]

@@ -271,13 +271,50 @@ static PyObject *pynytprof_write(PyObject *self, PyObject *args) {
         p += 8;
     }
 
+    /* F chunk */
+    size_t f_len = 0;
+    for (Py_ssize_t i = 0; i < nfiles; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+        const char *path = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        f_len += 16 + strlen(path) + 1;
+    }
+    char *fdata = malloc(f_len);
+    if (!fdata) {
+        free(ddata);
+        free(cdata);
+        free(sdata);
+        goto mem_err;
+    }
+    p = (unsigned char *)fdata;
+    for (Py_ssize_t i = 0; i < nfiles; i++) {
+        PyObject *it = PySequence_Fast_GET_ITEM(files, i);
+        uint32_t fid = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 0));
+        uint32_t flags = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 1));
+        uint32_t size = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 2));
+        uint32_t mtime = (uint32_t)PyLong_AsUnsignedLong(PyTuple_GET_ITEM(it, 3));
+        const char *path = PyUnicode_AsUTF8(PyTuple_GET_ITEM(it, 4));
+        size_t l = strlen(path);
+        put_u32le(p, fid);
+        p += 4;
+        put_u32le(p, flags);
+        p += 4;
+        put_u32le(p, size);
+        p += 4;
+        put_u32le(p, mtime);
+        p += 4;
+        memcpy(p, path, l);
+        p[l] = 0;
+        p += l + 1;
+    }
+    write_chunk(fp, 'S', sdata, (uint32_t)s_len);
+    write_chunk(fp, 'F', fdata, (uint32_t)f_len);
     write_chunk(fp, 'D', ddata, (uint32_t)d_len);
     write_chunk(fp, 'C', cdata, (uint32_t)c_len);
-    write_chunk(fp, 'S', sdata, (uint32_t)s_len);
     write_chunk(fp, 'E', NULL, 0);
 
     free(ddata);
     free(cdata);
+    free(fdata);
     free(sdata);
     fclose(fp);
     Py_RETURN_NONE;

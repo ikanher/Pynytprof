@@ -30,7 +30,7 @@ def test_pywrite_exact_sequence(tmp_path, monkeypatch):
         length = int.from_bytes(data[off+1:off+5], 'little')
         seen[tag] = seen.get(tag, 0) + 1
         off += 5 + length
-    assert tags == [b'P', b'S', b'D', b'C', b'E'], f"Tags: {tags!r}"
+    assert tags == [b'P', b'S', b'F', b'D', b'C', b'E'], f"Tags: {tags!r}"
     assert seen[b'P'] == 1 and seen[b'S'] == 1 and seen[b'D'] == 1 and seen[b'C'] == 1 and seen[b'E'] == 1
     assert all(seen[t] == 1 for t in tags)
     assert all(l > 0 for t, l in seen.items() if t != b'E')

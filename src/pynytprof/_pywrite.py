@@ -59,13 +59,32 @@ class Writer:
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
         self._payloads: dict[bytes, bytearray] = {
+            b"F": bytearray(),
             b"S": bytearray(),
             b"D": bytearray(),
             b"C": bytearray(),
         }
+        self._file_ids: dict[str, int] = {}
+        self._next_fid = 1
+        self._strings: dict[str, int] = {}
         self._offset = 0
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
+
+    def _string_index(self, s: str) -> int:
+        idx = self._strings.get(s)
+        if idx is None:
+            idx = len(self._strings)
+            self._strings[s] = idx
+        return idx
+
+    def _register_file(self, pathname: str) -> int:
+        fid = self._file_ids.get(pathname)
+        if fid is None:
+            fid = self._next_fid
+            self._file_ids[pathname] = fid
+            self._next_fid += 1
+        return fid
 
     def _write_raw_P(
         self, pid: int | None = None, ppid: int | None = None, tstamp: float | None = None
@@ -214,6 +233,8 @@ class Writer:
         if not self._fh:
             return
 
+        self._register_file(self.script_path)
+
         if self.tracer is not None:
 
             def ns2ticks(ns: int) -> int:
@@ -242,11 +263,26 @@ class Writer:
             self._payloads[b"D"] = bytearray()
 
         if os.getenv("PYNYTPROF_DEBUG"):
-            summary = {t.decode(): len(self._payloads.get(t, b"")) for t in [b"S", b"D", b"C"]}
+            summary = {t.decode(): len(self._payloads.get(t, b"")) for t in [b"S", b"F", b"D", b"C"]}
             summary["E"] = 0
             print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
 
-        for tag in [b"S", b"D", b"C", b"E"]:
+        if self._file_ids and not self._payloads[b"F"]:
+            f_buf = bytearray()
+            for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1]):
+                try:
+                    st = os.stat(path)
+                    size = st.st_size
+                    mtime = int(st.st_mtime)
+                except OSError:
+                    size = 0
+                    mtime = 0
+                flags = 0x10
+                f_buf += struct.pack("<IIII", fid, flags, size, mtime)
+                f_buf += path.encode() + b"\0"
+            self._payloads[b"F"] = f_buf
+
+        for tag in [b"S", b"F", b"D", b"C", b"E"]:
             payload = bytes(self._payloads.get(tag, b"")) if tag != b"E" else b""
             self._write_chunk(tag, payload)
         self._fh.close()

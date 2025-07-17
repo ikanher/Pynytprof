@@ -21,6 +21,8 @@ def test_D_payload_free_of_newlines(tmp_path):
     # skip S
     slen = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + slen
+    flen = int.from_bytes(data[idx+1:idx+5],'little')
+    idx += 5 + flen
     # expect D
     assert data[idx:idx+1]==b'D'
     dlen = int.from_bytes(data[idx+1:idx+5],'little')

@@ -14,7 +14,7 @@ def parse_chunks(data: bytes) -> dict:
     idx = 0
     while idx < len(data):
         tag = data[idx : idx + 1]
-        if tag in b"PDSCE":
+        if tag in b"PDSCEF":
             if tag == b"P":
                 length = 16
                 if idx + 1 + length > len(data):

@@ -19,5 +19,5 @@ def test_c_writer_emits_C_fourth(tmp_path, monkeypatch):
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length
-    assert tokens[3] == b'C'
+    assert tokens[4] == b'C'
 
