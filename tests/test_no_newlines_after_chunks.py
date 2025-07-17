@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os
 import subprocess
 import sys
@@ -17,7 +18,7 @@ def test_no_newlines_after_chunks(tmp_path, monkeypatch):
         'tests/example_script.py',
     ], env=env)
     data = out.read_bytes()
-    off = data.index(b'\n\nP') + 2
+    off = get_chunk_start(data)
     while off < len(data):
         length = int.from_bytes(data[off + 1:off + 5], 'little')
         end = off + 5 + length

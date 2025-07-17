@@ -17,23 +17,17 @@ def test_header_size_and_no_placeholder(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-
-    # Split into header (text) and payload (binary)
-    try:
-        header, payload = data.split(b"\n\n", 1)
-    except ValueError:
-        pytest.fail("Did not find the blank-line delimiter '\\n\\n' in output")
+    m = re.search(rb":header_size=(\d+)\n", data)
+    assert m, "Missing ':header_size=' line in banner"
+    declared = int(m.group(1))
+    header = data[:declared]
+    payload = data[declared:]
 
     # 1) No leftover placeholder
     assert b"{SIZE" not in header, "Found unreplaced '{SIZE' placeholder in banner"
 
-    # 2) Extract declared header_size
-    m = re.search(rb"^:header_size=(\d+)$", header, re.MULTILINE)
-    assert m, "Missing ':header_size=' line in banner"
-    declared = int(m.group(1))
-
-    # header returned by split() already includes the final '\n'
-    actual = len(header) + 2   # include the single blank-line LF
+    # banner length should equal declared header_size
+    actual = len(header)
     assert declared == actual, (
         f"header_size={declared}, but header length={actual}"
     )

@@ -1,5 +1,11 @@
+import re
+
+
 def get_chunk_start(data):
-    cutoff = data.index(b"\n\nP") + 2
+    m = re.search(rb":header_size=(\d+)\n", data)
+    assert m, "header_size line missing"
+    cutoff = int(m.group(1))
+    assert data[cutoff:cutoff + 1] == b"P"
     return cutoff
 
 

@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os
 import subprocess
 import sys
@@ -22,7 +23,7 @@ def test_no_spurious_tags(tmp_path, monkeypatch):
         env=os.environ,
     )
     data = out.read_bytes()
-    idx = data.index(b"\n\nP") + 2
+    idx = get_chunk_start(data)
     tags = []
     off = idx
     while off < len(data):

@@ -99,9 +99,8 @@ static unsigned emit_banner(FILE *fp) {
                        "!evals=0\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
                        PY_VERSION, sizeof(double), platform_name(), sysconf(_SC_CLK_TCK));
-    unsigned hdr_size = strlen(buf) + 19; /* size_line length = 19 */
+    unsigned hdr_size = strlen(buf) + 19; /* include size line */
     fprintf(fp, "%s:header_size=%05u\n", buf, hdr_size);
-    fputc('\n', fp);          /* blank line not counted */
     return hdr_size;
 }
 

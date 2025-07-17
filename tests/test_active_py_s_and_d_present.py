@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os, subprocess, sys
 from pathlib import Path
 
@@ -9,7 +10,7 @@ def test_active_writer_includes_S_and_D(tmp_path, monkeypatch):
         sys.executable, '-m', 'pynytprof.tracer', '-o', str(out), 'tests/example_script.py'
     ], env=env)
     data = out.read_bytes()
-    idx = data.index(b"\n\nP") + 2
+    idx = get_chunk_start(data)
     tags=[]
     off=idx
     while off < len(data):

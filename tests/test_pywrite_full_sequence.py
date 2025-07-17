@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os, subprocess, sys
 from pathlib import Path
 
@@ -15,7 +16,7 @@ def test_pywrite_exact_sequence(tmp_path, monkeypatch):
         env=env, stderr=subprocess.PIPE, text=True
     )
     data = out.read_bytes()
-    idx = data.index(b'\n\nP') + 2
+    idx = get_chunk_start(data)
     tags = []
     seen = {}
     off = idx

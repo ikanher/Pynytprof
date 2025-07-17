@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os, subprocess, sys
 from pathlib import Path
 
@@ -13,7 +14,7 @@ def test_no_newline_bytes_after_header(tmp_path):
         env=env
     )
     data = out.read_bytes()
-    split = data.index(b'\n\nP') + 2 + 1 + 4 + 4 + 8
+    split = get_chunk_start(data) + 1 + 4 + 4 + 8
     tail = data[split:]
     # Assert no 0x0A anywhere in the binary section
     pos = tail.find(b'\n')

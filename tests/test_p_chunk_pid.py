@@ -1,3 +1,4 @@
+from tests.conftest import get_chunk_start
 import os
 import subprocess
 import sys
@@ -16,7 +17,7 @@ def test_p_chunk_pid_matches_process(tmp_path):
     )
     p.wait()
     data = out.read_bytes()
-    idx = data.index(b"\n\nP") + 2
+    idx = get_chunk_start(data)
     assert data[idx : idx + 1] == b"P"
     pid_le = int.from_bytes(data[idx + 1 : idx + 5], "little")
     assert pid_le == p.pid, f"P-chunk PID {pid_le} != subprocess pid {p.pid}"
