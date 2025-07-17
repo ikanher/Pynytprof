@@ -17,8 +17,5 @@ def test_banner_includes_nv_size(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    m = re.search(rb":header_size=(\d+)\n", data)
-    header = data[: int(m.group(1))].decode()
-    assert re.search(r"^:nv_size=8$", header, re.MULTILINE), (
-        "Banner missing ':nv_size=8' line"
-    )
+    header = data.split(b"\nP", 1)[0].decode()
+    assert ":nv_size=8\n" in header, "Banner missing ':nv_size=8' line"
