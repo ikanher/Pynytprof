@@ -99,9 +99,15 @@ def _emit_p(writer: Writer) -> None:
 
 
 def _write_nytprof(out_path: Path) -> None:
-    w = Writer(
-        str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC, script_path=str(_script_path)
-    )
+    try:
+        w = Writer(
+            str(out_path),
+            start_ns=_start_ns,
+            ticks_per_sec=TICKS_PER_SEC,
+            script_path=str(_script_path),
+        )
+    except TypeError:
+        w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
     if os.environ.get("PYNYTPROF_DEBUG"):
         print(
             f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
