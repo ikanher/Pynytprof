@@ -11,22 +11,25 @@ def get_chunk_start(data):
 
 def parse_chunks(data: bytes) -> dict:
     chunks = {}
-    idx = 0
+    m = re.search(rb":header_size=(\d+)\n", data)
+    idx = int(m.group(1)) if m else 0
     while idx < len(data):
         tag = data[idx : idx + 1]
         if tag in b"PDSCEF":
             if tag == b"P":
-                length = 16
-                if idx + 1 + length > len(data):
+                if idx + 5 > len(data):
                     break
-                payload = data[idx + 1 : idx + 1 + length]
+                length = int.from_bytes(data[idx + 1 : idx + 5], "little")
+                if idx + 5 + length > len(data):
+                    break
+                payload = data[idx + 5 : idx + 5 + length]
                 off = idx
                 chunks[tag.decode()] = {
                     "offset": off,
                     "length": length,
                     "payload": payload,
                 }
-                idx += 1 + length
+                idx += 5 + length
                 continue
             length = int.from_bytes(data[idx + 1 : idx + 5], "little")
             if idx + 5 + length > len(data):

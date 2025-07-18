@@ -3,7 +3,7 @@ import os, subprocess, sys, struct
 from pathlib import Path
 
 
-def test_only_one_p_record_and_no_length(tmp_path):
+def test_only_one_p_record_with_length(tmp_path):
     out = tmp_path / "nytprof.out"
     env = {
         **os.environ,
@@ -25,5 +25,5 @@ def test_only_one_p_record_and_no_length(tmp_path):
     assert list(chunks.keys())[0] == "P" and len(chunks) >= 1
     assert chunks["P"]["offset"] == 0
     pid = int.from_bytes(chunks["P"]["payload"][:4], "little")
-    assert pid == p.pid, "P chunk still has length word!"
+    assert pid == p.pid
 
