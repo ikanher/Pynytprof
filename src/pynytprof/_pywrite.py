@@ -98,11 +98,15 @@ class Writer:
             ppid = os.getppid()
         if tstamp is None:
             tstamp = time.time()
+        payload = (
+            struct.pack("<I", pid)
+            + struct.pack("<I", ppid)
+            + struct.pack("<d", tstamp)
+        )
         _debug_write(self._fh, b"P")
-        _debug_write(self._fh, struct.pack("<I", pid))
-        _debug_write(self._fh, struct.pack("<I", ppid))
-        _debug_write(self._fh, struct.pack("<d", tstamp))
-        self._offset += 17
+        _debug_write(self._fh, struct.pack("<I", len(payload)))
+        _debug_write(self._fh, payload)
+        self._offset += 1 + 4 + len(payload)
 
     def _write_F_chunk(self) -> None:
         if self._fh is None:
@@ -168,7 +172,7 @@ class Writer:
 
         self._write_raw_P()
         if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
+            print("DEBUG: wrote raw P record (21 B)", file=sys.stderr)
             print(
                 f"DEBUG: header_size={header_size} first_token=P",
                 file=sys.stderr,

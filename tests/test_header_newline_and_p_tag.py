@@ -21,6 +21,7 @@ def test_exactly_two_lf_before_p(tmp_path):
     assert lf_count == 1, (
         f"expected exactly 1 LF before 'P', found {lf_count}"
     )
-    # First 4 payload bytes must be the real PID, not length=16
-    pid = int.from_bytes(data[idx_p+1:idx_p+5], 'little')
-    assert pid == p.pid, "still writing length word after 'P'"
+    length = int.from_bytes(data[idx_p+1:idx_p+5], 'little')
+    assert length == 16, "missing length word after 'P'"
+    pid = int.from_bytes(data[idx_p+5:idx_p+9], 'little')
+    assert pid == p.pid, "PID not at expected offset"

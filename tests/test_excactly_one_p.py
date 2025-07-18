@@ -21,8 +21,10 @@ def test_exactly_one_p_record(tmp_path):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b'P'
-    pid_bytes = data[idx+1:idx+5]
+    length = int.from_bytes(data[idx+1:idx+5], 'little')
+    assert length == 16
+    pid_bytes = data[idx+5:idx+9]
     assert pid_bytes == p.pid.to_bytes(4, 'little')
-    s_off = data.index(b'S', idx + 17)
-    assert s_off == idx + 17
+    s_off = data.index(b'S', idx + 21)
+    assert s_off == idx + 21
 

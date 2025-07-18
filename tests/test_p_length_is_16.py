@@ -23,11 +23,11 @@ def test_p_length_is_16(tmp_path, writer):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
-    pid = int.from_bytes(data[idx+1:idx+5], "little")
-    assert pid == os.getpid()
-    payload = data[idx+1:idx+17]
-    assert len(payload) == 16
+    length = int.from_bytes(data[idx+1:idx+5], "little")
+    assert length == 16
+    payload = data[idx+5:idx+5+16]
     pid2, ppid, ts = struct.unpack("<IId", payload)
+    assert len(payload) == 16
     assert pid2 == os.getpid()
     assert ppid == os.getppid()
 
