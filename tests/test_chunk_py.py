@@ -28,5 +28,5 @@ def test_py_writer_chunks(tmp_path):
         off += 5 + length
     assert tokens == [b"P", b"S", b"F", b"D", b"C", b"E"]
     assert b"A" not in tokens
-    assert data.endswith(b"E\x00\x00\x00\x00")
+    assert data.endswith(b"E")
 

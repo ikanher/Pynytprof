@@ -73,6 +73,9 @@ def verify(path: str, quiet: bool = False) -> bool:
                             raise ValueError("truncated payload")
                         payload = peek + rest
                     first = False
+                elif tag == b"E":
+                    length = 0
+                    payload = b""
                 else:
                     length_b = f.read(4)
                     if len(length_b) != 4:
