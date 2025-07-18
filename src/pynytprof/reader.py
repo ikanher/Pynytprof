@@ -87,12 +87,9 @@ def read(path: str) -> dict:
         tok = tok.decode()
         offset += 1
         if first and tok == "P":
-            if offset + 4 + 16 > len(data):
+            if offset + 16 > len(data):
                 raise ValueError("truncated P chunk")
-            length = struct.unpack_from("<I", data, offset)[0]
-            offset += 4
-            if length != 16:
-                raise ValueError("bad P length")
+            length = 16
             payload = data[offset : offset + length]
             offset += length
             first = False
@@ -115,7 +112,7 @@ def read(path: str) -> dict:
                 k, v = item.split(b"=", 1)
                 result["attrs"][k.decode()] = int(v)
         elif tok == "P":
-            if length != 16:
+            if len(payload) != 16:
                 raise ValueError("bad P length")
             start, pid, ppid = struct.unpack_from("<QII", payload, 0)
             result["attrs"].update({"start_time": start, "pid": pid, "ppid": ppid})

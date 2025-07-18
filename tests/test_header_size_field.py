@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize("writer", ["py", "c"])
-def test_header_size_points_to_P(tmp_path, writer):
+def test_banner_ends_at_first_P(tmp_path, writer):
     out = tmp_path / "nytprof.out"
     env = {
         **os.environ,
@@ -29,11 +29,5 @@ def test_header_size_points_to_P(tmp_path, writer):
         env=env,
     )
     data = out.read_bytes()
-    m = re.search(rb":header_size=(\d+)\n", data)
-    assert m, "header_size line missing"
-    declared = int(m.group(1))
-    p_offset = declared
-    assert data[p_offset:p_offset + 1] == b"P"
-    assert declared == p_offset, (
-        f"header_size {declared} should equal P offset {p_offset}"
-    )
+    p_off = data.index(b"\nP") + 1
+    assert data[p_off:p_off + 1] == b"P"

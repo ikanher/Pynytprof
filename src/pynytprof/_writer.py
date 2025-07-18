@@ -116,10 +116,7 @@ class Writer:
             f":hz={hz}",
         ]
         static_hdr = "\n".join(hdr_lines) + "\n"
-        size_of_static = len(static_hdr.encode())
-        header_size = size_of_static + len(":header_size=00000\n")
-        hdr = _make_ascii_header(static_hdr, header_size)
-        hdr += b"\n"
+        hdr = _make_ascii_header(static_hdr)
         data = hdr
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)

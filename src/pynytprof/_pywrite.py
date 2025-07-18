@@ -21,10 +21,11 @@ NYTPROF_MAJOR = int(_major_match.group(1)) if _major_match else 5
 NYTPROF_MINOR = int(_minor_match.group(1)) if _minor_match else 0
 
 
-def _make_ascii_header(static: str, header_size: int) -> bytes:
+def _make_ascii_header(static: str) -> bytes:
+    """Return the finalized banner bytes."""
     banner = static
-    banner += f":header_size={header_size:05d}\n"
-    banner += "\n"
+    if not banner.endswith("\n"):
+        banner += "\n"
     return banner.encode()
 
 
@@ -104,9 +105,8 @@ class Writer:
             + struct.pack("<d", tstamp)
         )
         _debug_write(self._fh, b"P")
-        _debug_write(self._fh, struct.pack("<I", len(payload)))
         _debug_write(self._fh, payload)
-        self._offset += 1 + 4 + len(payload)
+        self._offset += 1 + len(payload)
 
     def _write_F_chunk(self) -> None:
         if self._fh is None:
@@ -157,26 +157,18 @@ class Writer:
         ]
         static_banner = "\n".join(lines) + "\n"
 
-        static_bytes = static_banner.encode()
-        size_line = b":header_size=00000\n"
-        header_size = len(static_bytes) + len(size_line)
-        size_line = f":header_size={header_size:05d}\n".encode()
-        banner = static_bytes + size_line
+        banner = static_banner.encode()
         if os.getenv("PYNYTPROF_DEBUG"):
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
             print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
 
         self._fh.write(banner)
-        self._offset = header_size
+        self._offset = len(banner)
 
         self._write_raw_P()
         if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: wrote raw P record (21 B)", file=sys.stderr)
-            print(
-                f"DEBUG: header_size={header_size} first_token=P",
-                file=sys.stderr,
-            )
+            print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         payload = payload.replace(b"\n", b"\x01")
@@ -383,10 +375,7 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         ]
 
         static = "\n".join(lines_hdr) + "\n"
-        size_placeholder = ":header_size=00000\n"
-        header_size = len(static) + len(size_placeholder)
-        size_line = f":header_size={header_size:05d}\n"
-        banner = static + size_line
+        banner = static
 
         f.write(banner.encode())
 

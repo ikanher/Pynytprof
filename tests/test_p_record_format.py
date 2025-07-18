@@ -23,9 +23,7 @@ def test_p_record_format(tmp_path):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
-    length = struct.unpack_from("<I", data, idx + 1)[0]
-    assert length == 16
-    payload = data[idx + 5 : idx + 21]
+    payload = data[idx + 1 : idx + 17]
     pid, ppid, ts = struct.unpack("<IId", payload)
     assert pid == p.pid
     assert ppid == os.getpid()

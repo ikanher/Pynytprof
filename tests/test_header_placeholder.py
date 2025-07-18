@@ -10,7 +10,5 @@ def test_no_size_placeholder(tmp_path):
     out = tmp_path / "nytprof.out"
     subprocess.check_call([sys.executable, "-m", "pynytprof.tracer", "-o", str(out), "-e", "pass"], env=env)
     data = out.read_bytes()
-    m = re.search(rb":header_size=(\d+)\n", data)
-    assert m
-    header = data[: int(m.group(1))]
+    header = data.split(b"\nP", 1)[0]
     assert b"{SIZE" not in header

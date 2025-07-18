@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-def test_header_size_and_no_placeholder(tmp_path):
+def test_banner_sanity(tmp_path):
     env = {
         **os.environ,
         "PYNYTPROF_WRITER": "py",
@@ -17,20 +17,14 @@ def test_header_size_and_no_placeholder(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    m = re.search(rb":header_size=(\d+)\n", data)
-    assert m, "Missing ':header_size=' line in banner"
-    declared = int(m.group(1))
-    header = data[:declared]
-    payload = data[declared:]
+    header, payload = data.split(b"\nP", 1)
+    payload = b"P" + payload
 
     # 1) No leftover placeholder
     assert b"{SIZE" not in header, "Found unreplaced '{SIZE' placeholder in banner"
+    assert b":nv_size=8\n" in header
 
-    # banner length should equal declared header_size
-    actual = len(header)
-    assert declared == actual, (
-        f"header_size={declared}, but header length={actual}"
-    )
+
 
     # 4) Sanity: first payload byte must be 'P'
     assert payload.startswith(b"P"), "Binary payload does not start with 'P' tag"
