@@ -28,6 +28,12 @@ def parse_chunks(data: bytes) -> dict:
                 }
                 idx += 17
                 continue
+            if tag == b"E":
+                off = idx
+                chunks[tag.decode()] = {"offset": off, "length": 0, "payload": b""}
+                idx += 1
+                continue
+
             length = int.from_bytes(data[idx + 1 : idx + 5], "little")
             if idx + 5 + length > len(data):
                 idx += 1

@@ -289,10 +289,14 @@ class Writer:
             self._write_chunk(b"F", f_payload)
             self._offset += 5 + len(f_payload)
 
-        for tag in [b"D", b"C", b"E"]:
-            payload = bytes(self._payloads.get(tag, b"")) if tag != b"E" else b""
+        for tag in [b"D", b"C"]:
+            payload = bytes(self._payloads.get(tag, b""))
             self._write_chunk(tag, payload)
             self._offset += 5 + len(payload)
+
+        # final end marker is a raw byte with no length
+        _debug_write(self._fh, b"E")
+        self._offset += 1
         self._fh.close()
         self._fh = None
 
