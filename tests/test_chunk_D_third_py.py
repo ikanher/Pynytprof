@@ -16,8 +16,7 @@ def test_py_writer_emits_D_third(tmp_path, monkeypatch):
         tok = data[off:off+1]
         tokens.append(tok)
         if tok == b'P':
-            length = int.from_bytes(data[off+1:off+5], 'little')
-            off += 5 + length
+            off += 17
             continue
         length = int.from_bytes(data[off+1:off+5], 'little')
         off += 5 + length

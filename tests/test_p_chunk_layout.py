@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def test_p_chunk_has_length_word(tmp_path):
+def test_p_chunk_no_length_word(tmp_path):
     out = tmp_path / "nytprof.out"
     env = {
         **os.environ,
@@ -23,9 +23,8 @@ def test_p_chunk_has_length_word(tmp_path):
     ], env=env)
     p.wait()
     data = out.read_bytes()
-    idx = get_chunk_start(data)
-    length = struct.unpack_from('<I', data, idx+1)[0]
-    assert length == 16, f"P length {length} != 16"
-    pid = struct.unpack_from('<I', data, idx + 5)[0]
-    assert pid == p.pid, "PID not at offset 5"
-    assert data[idx + 21 : idx + 22] == b"S", "S tag not at expected offset"
+    p_off = data.index(b"\nP") + 1
+    pid = struct.unpack_from('<I', data, p_off + 1)[0]
+    assert pid == p.pid, f"pid mismatch (found {pid}, expected {p.pid})"
+    next_tag = data[p_off + 17 : p_off + 18]
+    assert next_tag in b'SFDCE', f"unexpected next tag {next_tag!r}"

@@ -99,9 +99,9 @@ static unsigned emit_banner(FILE *fp) {
                        "!evals=0\n",
                        NYTPROF_MAJOR, NYTPROF_MINOR, rfc_2822_time(), basetime,
                        PY_VERSION, platform_name(), sysconf(_SC_CLK_TCK));
-    unsigned hdr_size = strlen(buf) + 19; /* include size line */
-    fprintf(fp, "%s:header_size=%05u\n", buf, hdr_size);
-    return hdr_size;
+    size_t len_written = strlen(buf);
+    fwrite(buf, 1, len_written, fp);
+    return (unsigned)len_written;
 }
 
 static void put_double_le(unsigned char *p, double v) {
@@ -126,18 +126,16 @@ static void store_le_double(FILE *fp, double v) {
 }
 
 static void emit_header(FILE *fp) {
-    unsigned hdr_size = emit_banner(fp);
+    emit_banner(fp);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     double t = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
     fputc('P', fp);
-    store_le32(fp, 16); /* length */
     store_le32(fp, (uint32_t)getpid());
     store_le32(fp, (uint32_t)getppid());
     store_le_double(fp, t);
     if (getenv("PYNYTPROF_DEBUG")) {
-        fprintf(stderr, "DEBUG: wrote raw P record (21 B)\n");
-        fprintf(stderr, "DEBUG: header_size=%d first_token=P\n", hdr_size);
+        fprintf(stderr, "DEBUG: wrote raw P record (17 B)\n");
     }
 
 }

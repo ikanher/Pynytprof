@@ -8,7 +8,7 @@ from pynytprof import tracer
 
 
 @pytest.mark.parametrize("writer", ["py"])
-def test_p_length_is_16(tmp_path, writer):
+def test_p_payload_is_16_bytes(tmp_path, writer):
     env = os.environ.copy()
     env["PYNYTPROF_WRITER"] = writer
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
@@ -23,9 +23,7 @@ def test_p_length_is_16(tmp_path, writer):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
-    length = int.from_bytes(data[idx+1:idx+5], "little")
-    assert length == 16
-    payload = data[idx+5:idx+5+16]
+    payload = data[idx+1:idx+17]
     pid2, ppid, ts = struct.unpack("<IId", payload)
     assert len(payload) == 16
     assert pid2 == os.getpid()

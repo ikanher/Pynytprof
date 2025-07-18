@@ -2,34 +2,31 @@ import re
 
 
 def get_chunk_start(data):
-    m = re.search(rb":header_size=(\d+)\n", data)
-    assert m, "header_size line missing"
-    cutoff = int(m.group(1))
-    assert data[cutoff:cutoff + 1] == b"P"
-    return cutoff
+    idx = data.index(b"\nP") + 1
+    assert data[idx:idx + 1] == b"P"
+    return idx
 
 
 def parse_chunks(data: bytes) -> dict:
     chunks = {}
-    m = re.search(rb":header_size=(\d+)\n", data)
-    idx = int(m.group(1)) if m else 0
+    try:
+        idx = data.index(b"\nP") + 1
+    except ValueError:
+        idx = 0
     while idx < len(data):
         tag = data[idx : idx + 1]
         if tag in b"PDSCEF":
             if tag == b"P":
-                if idx + 5 > len(data):
+                if idx + 17 > len(data):
                     break
-                length = int.from_bytes(data[idx + 1 : idx + 5], "little")
-                if idx + 5 + length > len(data):
-                    break
-                payload = data[idx + 5 : idx + 5 + length]
+                payload = data[idx + 1 : idx + 17]
                 off = idx
                 chunks[tag.decode()] = {
                     "offset": off,
-                    "length": length,
+                    "length": 16,
                     "payload": payload,
                 }
-                idx += 5 + length
+                idx += 17
                 continue
             length = int.from_bytes(data[idx + 1 : idx + 5], "little")
             if idx + 5 + length > len(data):

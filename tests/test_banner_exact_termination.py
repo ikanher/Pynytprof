@@ -16,7 +16,5 @@ def test_banner_ends_with_single_newline(tmp_path):
         env=env,
     )
     data = out.read_bytes()
-    import re
-    m = re.search(rb":header_size=(\d+)\n", data)
-    off = int(m.group(1))
+    off = data.index(b"\nP") + 1
     assert data[off - 1] == 0x0A and data[off - 2] != 0x0A

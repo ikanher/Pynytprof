@@ -22,6 +22,4 @@ def test_no_blank_line_before_P(tmp_path):
     p_off = get_chunk_start(data)
     # exactly one LF before 'P'
     assert data[p_off - 1] == 0x0A and data[p_off - 2] != 0x0A
-    hdr = re.search(rb":header_size=(\d+)\n", data).group(1)
-    assert int(hdr) == p_off
 

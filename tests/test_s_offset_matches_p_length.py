@@ -23,5 +23,5 @@ def test_s_offset_matches_p_chunk_length(tmp_path):
     p_off = chunks['P']['offset']
     p_len = chunks['P']['length']
     s_off = chunks['S']['offset']
-    expected = p_off + 1 + 4 + p_len
+    expected = p_off + 1 + p_len
     assert s_off == expected, f"S offset {s_off:#x} != expected {expected:#x}"

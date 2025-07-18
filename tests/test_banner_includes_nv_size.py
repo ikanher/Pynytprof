@@ -19,7 +19,5 @@ def test_banner_includes_nv_size(tmp_path):
     data = out.read_bytes()
     header, _ = data.split(b"\nP", 1)
     assert b":nv_size=8\n" in header
-    m = re.search(rb":header_size=(\d+)", header)
-    asserted = int(m.group(1))
-    first_p = data.index(b"P", asserted)
-    assert asserted == first_p, f"header_size {asserted} != P offset {first_p}"
+    p_off = len(header) + 1
+    assert data[p_off:p_off + 1] == b"P"
