@@ -17,17 +17,16 @@ def parse_chunks(data: bytes) -> dict:
         tag = data[idx : idx + 1]
         if tag in b"PDSCEF":
             if tag == b"P":
-                if idx + 21 > len(data):
+                if idx + 17 > len(data):
                     break
-                length = int.from_bytes(data[idx + 1 : idx + 5], "little")
-                payload = data[idx + 5 : idx + 5 + length]
+                payload = data[idx + 1 : idx + 17]
                 off = idx
                 chunks[tag.decode()] = {
                     "offset": off,
-                    "length": length,
+                    "length": 16,
                     "payload": payload,
                 }
-                idx += 5 + length
+                idx += 17
                 continue
             if tag == b"E":
                 off = idx

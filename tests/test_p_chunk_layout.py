@@ -24,7 +24,7 @@ def test_p_chunk_no_length_word(tmp_path):
     p.wait()
     data = out.read_bytes()
     p_off = data.index(b"\nP") + 1
-    pid = struct.unpack_from('<I', data, p_off + 5)[0]
+    pid = struct.unpack_from('<I', data, p_off + 1)[0]
     assert pid == p.pid, f"pid mismatch (found {pid}, expected {p.pid})"
-    next_tag = data[p_off + 21 : p_off + 22]
+    next_tag = data[p_off + 17 : p_off + 18]
     assert next_tag in b'SFDCE', f"unexpected next tag {next_tag!r}"

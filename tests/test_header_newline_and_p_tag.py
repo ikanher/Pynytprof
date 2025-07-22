@@ -21,5 +21,5 @@ def test_exactly_two_lf_before_p(tmp_path):
     assert lf_count == 1, (
         f"expected exactly 1 LF before 'P', found {lf_count}"
     )
-    pid = int.from_bytes(data[idx_p+5:idx_p+9], 'little')
+    pid = int.from_bytes(data[idx_p+1:idx_p+5], 'little')
     assert pid == p.pid, "PID not at expected offset"

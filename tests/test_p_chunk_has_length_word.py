@@ -13,7 +13,7 @@ def test_p_chunk_payload_length(tmp_path):
     p.wait()
     data = out.read_bytes()
     idx = get_chunk_start(data)
-    payload = data[idx + 5 : idx + 21]
+    payload = data[idx + 1 : idx + 17]
     assert len(payload) == 16
     pid = struct.unpack_from('<I', payload)[0]
     assert pid == p.pid
