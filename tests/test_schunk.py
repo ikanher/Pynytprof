@@ -28,7 +28,7 @@ def test_schunk(tmp_path, writer):
         tok = chunks[off : off + 1]
         tokens.append(tok)
         if tok == b"P":
-            off += 17
+            off += 21
             continue
         length = int.from_bytes(chunks[off + 1 : off + 5], "little")
         if tok == b"S":

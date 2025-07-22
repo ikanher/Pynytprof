@@ -105,8 +105,9 @@ class Writer:
             + struct.pack("<d", tstamp)
         )
         _debug_write(self._fh, b"P")
+        _debug_write(self._fh, len(payload).to_bytes(4, "little"))
         _debug_write(self._fh, payload)
-        self._offset += 1 + len(payload)
+        self._offset += 5 + len(payload)
 
     def _write_F_chunk(self) -> None:
         if self._fh is None:
@@ -168,7 +169,7 @@ class Writer:
 
         self._write_raw_P()
         if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
+            print("DEBUG: wrote raw P record (21 B)", file=sys.stderr)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         payload = payload.replace(b"\n", b"\x01")
