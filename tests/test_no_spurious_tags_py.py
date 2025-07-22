@@ -30,7 +30,7 @@ def test_no_spurious_tags(tmp_path, monkeypatch):
         tag = data[off : off + 1]
         tags.append(tag)
         if tag == b"P":
-            off += 17
+            off += 21
             continue
         length = int.from_bytes(data[off + 1 : off + 5], "little")
         off += 5 + length

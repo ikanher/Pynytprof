@@ -25,7 +25,7 @@ def test_dchunk_binary(tmp_path):
     )
     data = out.read_bytes()
     idx = get_chunk_start(data)
-    idx += 17  # skip P record
+    idx += 21  # skip P record
     length = int.from_bytes(data[idx + 1 : idx + 5], 'little')
     idx += 5 + length
     length = int.from_bytes(data[idx + 1 : idx + 5], 'little')

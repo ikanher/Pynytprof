@@ -23,7 +23,7 @@ def test_p_payload_is_16_bytes(tmp_path, writer):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
-    payload = data[idx+1:idx+17]
+    payload = data[idx+5:idx+21]
     pid2, ppid, ts = struct.unpack("<IId", payload)
     assert len(payload) == 16
     assert pid2 == os.getpid()

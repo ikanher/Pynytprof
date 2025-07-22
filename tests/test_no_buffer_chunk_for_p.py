@@ -15,5 +15,6 @@ def test_no_buffer_chunk_for_p(tmp_path):
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
     pid_bytes = os.getpid().to_bytes(4, "little")
-    assert data[idx+1:idx+5] == pid_bytes
+    assert data[idx+1:idx+5] == (16).to_bytes(4, "little")
+    assert data[idx+5:idx+9] == pid_bytes
 

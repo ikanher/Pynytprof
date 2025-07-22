@@ -87,9 +87,12 @@ def read(path: str) -> dict:
         tok = tok.decode()
         offset += 1
         if first and tok == "P":
-            if offset + 16 > len(data):
-                raise ValueError("truncated P chunk")
-            length = 16
+            if offset + 4 > len(data):
+                raise ValueError("truncated length")
+            length = struct.unpack_from("<I", data, offset)[0]
+            offset += 4
+            if offset + length > len(data):
+                raise ValueError("truncated payload")
             payload = data[offset : offset + length]
             offset += length
             first = False
