@@ -172,21 +172,9 @@ class Writer:
             print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
-        payload = payload.replace(b"\n", b"\x01")
-        length = len(payload)
-        lb = length.to_bytes(4, "little")
-        while b"\n" in lb:
-            payload += b"\x00"
-            length += 1
-            lb = length.to_bytes(4, "little")
-        if tag in (b"S", b"C"):
-            rec_size = struct.calcsize("<IIIQQ")
-            rem = length % rec_size
-            if rem:
-                pad = rec_size - rem
-                payload += b"\x00" * pad
-                length += pad
-                lb = length.to_bytes(4, "little")
+        assert len(tag) == 1
+        if self._fh is None:
+            raise ValueError("writer not opened")
         if os.getenv("PYNYTPROF_DEBUG"):
             offset = self._fh.tell()
             from hashlib import sha256
@@ -195,7 +183,7 @@ class Writer:
             first16 = payload[:16].hex()
             last16 = payload[-16:].hex() if payload else ""
             print(
-                f"DEBUG: write tag={tag.decode()} len={length}",
+                f"DEBUG: write tag={tag.decode()} len={len(payload)}",
                 file=sys.stderr,
             )
             print(
@@ -212,7 +200,7 @@ class Writer:
                     file=sys.stderr,
                 )
         _debug_write(self._fh, tag)
-        _debug_write(self._fh, length.to_bytes(4, "little"))
+        _debug_write(self._fh, struct.pack("<I", len(payload)))
         if payload:
             _debug_write(self._fh, payload)
 

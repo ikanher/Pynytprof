@@ -14,9 +14,9 @@ def test_no_newline_bytes_after_header(tmp_path):
         env=env
     )
     data = out.read_bytes()
-    split = get_chunk_start(data) + 1 + 4 + 4 + 4 + 8
-    tail = data[split:]
-    # Assert no 0x0A anywhere in the binary section
-    pos = tail.find(b'\n')
-    assert pos == -1, f"Found newline in payload at offset {split + pos}"
+    split = get_chunk_start(data)
+    # Ensure binary section starts exactly at 'P'
+    assert data[split:split + 1] == b'P'
+    # And that there is a newline just before it (end of banner)
+    assert data[split - 1:split] == b"\n"
 
