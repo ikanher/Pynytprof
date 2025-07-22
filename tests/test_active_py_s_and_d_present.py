@@ -17,7 +17,7 @@ def test_active_writer_includes_S_and_D(tmp_path, monkeypatch):
         tok = data[off:off+1]
         tags.append(tok)
         if tok == b'P':
-            off += 21
+            off += 17
             continue
         length = int.from_bytes(data[off+1:off+5],'little')
         off += 5 + length

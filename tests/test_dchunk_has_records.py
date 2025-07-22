@@ -16,7 +16,7 @@ def test_D_chunk_contains_records(tmp_path):
     )
     data = out.read_bytes()
     idx = get_chunk_start(data)
-    idx += 21
+    idx += 17
     length = int.from_bytes(data[idx+1:idx+5],'little')
     idx += 5 + length
     length = int.from_bytes(data[idx+1:idx+5],'little')
