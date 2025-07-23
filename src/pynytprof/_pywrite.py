@@ -22,10 +22,8 @@ NYTPROF_MINOR = int(_minor_match.group(1)) if _minor_match else 0
 
 
 def _make_ascii_header(static: str) -> bytes:
-    """Return the finalized banner bytes."""
-    banner = static
-    if not banner.endswith("\n"):
-        banner += "\n"
+    """Return the finalized banner bytes with exactly one trailing LF."""
+    banner = static.rstrip("\n") + "\n"
     return banner.encode()
 
 
@@ -155,7 +153,7 @@ class Writer:
             b"!evals=0",
         ]
 
-        banner = b"\n".join(lines) + b"\n"
+        banner = b"\n".join(lines).rstrip(b"\n") + b"\n"
         if os.getenv("PYNYTPROF_DEBUG"):
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
             print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
@@ -331,7 +329,7 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
             b"!evals=0",
         ]
 
-        banner = b"\n".join(lines_hdr) + b"\n"
+        banner = b"\n".join(lines_hdr).rstrip(b"\n") + b"\n"
 
         f.write(banner)
 

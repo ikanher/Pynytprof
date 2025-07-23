@@ -115,7 +115,7 @@ class Writer:
             f":osname={platform.system().lower()}",
             f":hz={hz}",
         ]
-        static_hdr = "\n".join(hdr_lines) + "\n"
+        static_hdr = "\n".join(hdr_lines).rstrip("\n") + "\n"
         hdr = _make_ascii_header(static_hdr)
         data = hdr
         if os.getenv("PYNYTPROF_DEBUG"):
