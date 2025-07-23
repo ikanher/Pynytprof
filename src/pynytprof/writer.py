@@ -298,7 +298,7 @@ class Writer:
             f":osname={platform.system().lower()}",
             f":hz={hz}",
         ]
-        banner = "\n".join(lines) + "\n"
+        banner = "\n".join(lines).rstrip("\n") + "\n"
         assert "\0" not in banner
         data = banner.encode()
         if os.getenv("PYNYTPROF_DEBUG"):
