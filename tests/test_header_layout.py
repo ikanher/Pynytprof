@@ -21,7 +21,8 @@ def test_header_layout(tmp_path):
     data = out.read_bytes()
     p_off = get_chunk_start(data)
     header = data[:p_off]
-    assert header.endswith(b"\n\n"), "header must end with blank line"
+    assert header.endswith(b"\n"), "header must end with newline"
+    assert not header.endswith(b"\n\n"), "header must not have extra blank line"
 
     lines = header.decode().splitlines()
     expected_keys = [
@@ -53,7 +54,6 @@ def test_header_layout(tmp_path):
         "!nameanonsubs",
         "!calls",
         "!evals",
-        "",
     ]
     actual_keys = []
     for line in lines:
@@ -71,5 +71,4 @@ def test_header_layout(tmp_path):
         if key.startswith("!") and key not in expected_keys:
             pytest.fail(f"unknown option {key}")
 
-    assert lines[-2].startswith("!evals=")
-    assert lines[-1] == ""
+    assert lines[-1].startswith("!evals=")
