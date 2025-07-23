@@ -120,7 +120,7 @@ class Writer:
         self._payloads[b"F"] = bytearray()
 
     def _write_header(self) -> None:
-        timestamp = format_datetime(datetime.datetime.utcnow())
+        timestamp = format_datetime(datetime.datetime.now(datetime.timezone.utc))
         basetime = int(self._start_ns // 1_000_000_000)
         script = os.path.basename(self.script_path)
 
@@ -293,7 +293,7 @@ class Writer:
 def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec: int) -> None:
     path = Path(out_path)
     with path.open("wb") as f:
-        timestamp = format_datetime(datetime.datetime.utcnow())
+        timestamp = format_datetime(datetime.datetime.now(datetime.timezone.utc))
         basetime = int(start_ns // 1_000_000_000)
         try:
             hz = os.sysconf("SC_CLK_TCK")
