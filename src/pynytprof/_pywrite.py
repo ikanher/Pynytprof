@@ -116,6 +116,35 @@ class Writer:
         _debug_write(self._fh, payload)
         self._offset += 1 + len(payload)
 
+    def _emit_new_fid(
+        self,
+        fid: int,
+        eval_fid: int,
+        eval_line_num: int,
+        flags: int,
+        size: int,
+        mtime: int,
+        name: bytes,
+        utf8: bool = False,
+    ) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+
+        from .protocol import write_tag_u32, write_u32, output_str
+        from .tags import NYTP_TAG_NEW_FID
+
+        payload = bytearray()
+        payload += write_tag_u32(NYTP_TAG_NEW_FID, fid)
+        payload += write_u32(eval_fid)
+        payload += write_u32(eval_line_num)
+        payload += write_u32(flags)
+        payload += write_u32(size)
+        payload += write_u32(mtime)
+        payload += output_str(name, utf8)
+
+        _debug_write(self._fh, bytes(payload))
+        self._offset += len(payload)
+
     def _write_F_chunk(self) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
@@ -173,6 +202,16 @@ class Writer:
         self._offset = len(banner)
 
         self._write_raw_P()
+        self._emit_new_fid(
+            fid=1,
+            eval_fid=0,
+            eval_line_num=0,
+            flags=0,
+            size=0,
+            mtime=0,
+            name=b"(unknown)",
+            utf8=False,
+        )
         if os.getenv("PYNYTPROF_DEBUG"):
             print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
 
