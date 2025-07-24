@@ -63,6 +63,7 @@ class Writer:
             b"D": bytearray(),
             b"C": bytearray(),
         }
+        self.nv_size = struct.calcsize("d")
         self._file_ids: dict[str, int] = {}
         self._next_fid = 1
         self._register_file(self.script_path)
@@ -97,6 +98,7 @@ class Writer:
             ppid = os.getppid()
         if tstamp is None:
             tstamp = time.time()
+        assert self.nv_size == struct.calcsize("d")
         payload = (
             struct.pack("<I", pid)
             + struct.pack("<I", ppid)
@@ -128,7 +130,7 @@ class Writer:
             f":basetime={basetime}".encode(),
             f":application={script}".encode(),
             f":perl_version={sys.version.split()[0]}".encode(),
-            b":nv_size=8",
+            f":nv_size={self.nv_size}".encode(),
             b":xs_version=6.11",
             b":PL_perldb=0",
             b":clock_id=1",
@@ -304,7 +306,7 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
             f":basetime={basetime}".encode(),
             b":application=-e",
             f":perl_version={sys.version.split()[0]}".encode(),
-            b":nv_size=8",
+            f":nv_size={struct.calcsize('d')}".encode(),
             b":xs_version=6.11",
             b":PL_perldb=0",
             b":clock_id=1",

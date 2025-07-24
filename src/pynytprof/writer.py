@@ -292,7 +292,7 @@ class Writer:
             f":basetime={int(self._start_ns // 1_000_000_000)}",
             ":application=-e",
             f":perl_version={sys.version.split()[0]}",
-            ":nv_size=8",
+            f":nv_size={struct.calcsize('d')}",
             ":clock_mod=cpu",
             ":ticks_per_sec=10000000",
             f":osname={platform.system().lower()}",
