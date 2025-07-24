@@ -13,6 +13,7 @@ __all__ = [
     "read_u32",
     "read_i32",
     "is_valid_varint_prefix",
+    "output_str",
 ]
 
 
@@ -95,4 +96,18 @@ def read_i32(buf: bytes, off: int) -> tuple[int, int]:
 
 def is_valid_varint_prefix(b: int) -> bool:
     return 0 <= b <= 0xFF
+
+
+def output_str(data: bytes, utf8: bool = False) -> bytes:
+    """Return the NYTProf varint+raw representation of ``data``.
+
+    If ``utf8`` is ``True`` the length is negated before encoding, mirroring the
+    XS convention that a negative length denotes utf8 data.  The caller is
+    responsible for prefixing any tag byte.
+    """
+
+    length = len(data)
+    if utf8:
+        length = -length
+    return write_i32(length) + data
 
