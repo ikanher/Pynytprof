@@ -5,6 +5,7 @@ import pytest
 
 CLI = Path(__file__).resolve().parents[1] / "pynytprof"
 ENV = dict(os.environ)
+ENV.setdefault("PYNYTPROF_OUTER_CHUNKS", "1")
 ENV["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
 
 
@@ -23,6 +24,7 @@ def test_profile_verify(tmp_path, writer):
     env = dict(ENV)
     if writer == "py":
         env["PYNTP_FORCE_PY"] = "1"
+    env.setdefault("PYNYTPROF_OUTER_CHUNKS", "1")
     out_file = tmp_path / f"nytprof.out.{os.getpid()}"
     proc = subprocess.run([str(CLI), "profile", "-o", str(out_file), str(script)], cwd=tmp_path, env=env)
     assert proc.returncode == 0
