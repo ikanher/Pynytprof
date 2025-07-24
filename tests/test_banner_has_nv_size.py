@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import struct
 from pathlib import Path
 
 
@@ -22,4 +23,5 @@ def test_banner_has_nv_size(tmp_path):
     ], env=env)
     data = out.read_bytes()
     header = data.split(b"\nP", 1)[0] + b"\n"
-    assert b":nv_size=8\n" in header, "missing :nv_size=8 banner line"
+    nv = struct.calcsize("d")
+    assert f":nv_size={nv}\n".encode() in header, "missing :nv_size banner line"

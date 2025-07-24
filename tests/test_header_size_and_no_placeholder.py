@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+import struct
 from pathlib import Path
 
 
@@ -22,7 +23,8 @@ def test_banner_sanity(tmp_path):
 
     # 1) No leftover placeholder
     assert b"{SIZE" not in header, "Found unreplaced '{SIZE' placeholder in banner"
-    assert b":nv_size=8\n" in header
+    nv = struct.calcsize("d")
+    assert f":nv_size={nv}\n".encode() in header
 
 
 
