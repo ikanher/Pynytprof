@@ -13,7 +13,8 @@ This document describes how **Pynytprof** works and how its modules fit together
 | `convert.py`                  | Convert NYTProf files to other formats                       |
 | `tracer.py`                   | Python tracer collecting per-line execution stats           |
 | `_writer.py`                  | Abstraction for chunked NYTProf output (`py` and `c` modes)  |
-| `_cwrite.*.so`                | Optimized C extension for chunk writing                      |
+| `_cwrite.*.so`                | Optimized C extension for chunk writing               |
+| `protocol.py`                 | Low-level helpers for integer encoding                |
 | `reader.py`                   | Developer helper to decode NYTProf binary files             |
 | `verify.py`                   | Stream verifier for NYTProf files                            |
 | `tests/`                      | Unit and integration tests validating output correctness     |
