@@ -1,4 +1,6 @@
 import re
+import os
+import pytest
 
 
 def get_chunk_start(data):
@@ -49,3 +51,10 @@ def parse_chunks(data: bytes) -> dict:
         else:
             idx += 1
     return chunks
+
+
+@pytest.fixture(autouse=True)
+def _set_outer_chunks(monkeypatch):
+    if "PYNYTPROF_OUTER_CHUNKS" not in os.environ:
+        monkeypatch.setenv("PYNYTPROF_OUTER_CHUNKS", "1")
+    yield

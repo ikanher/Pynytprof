@@ -107,7 +107,11 @@ def _write_nytprof(out_path: Path) -> None:
             script_path=str(_script_path),
         )
     except TypeError:
-        w = Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC)
+        w = Writer(
+            str(out_path),
+            start_ns=_start_ns,
+            ticks_per_sec=TICKS_PER_SEC,
+        )
     if os.environ.get("PYNYTPROF_DEBUG"):
         print(
             f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",
@@ -196,7 +200,11 @@ def _write_nytprof(out_path: Path) -> None:
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
-    with Writer(str(out_path), start_ns=_start_ns, ticks_per_sec=TICKS_PER_SEC) as w:
+    with Writer(
+        str(out_path),
+        start_ns=_start_ns,
+        ticks_per_sec=TICKS_PER_SEC,
+    ) as w:
         if os.environ.get("PYNYTPROF_DEBUG"):
             print(
                 f"USING WRITER: {w.__class__.__module__}.{w.__class__.__name__}",

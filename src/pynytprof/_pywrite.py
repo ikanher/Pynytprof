@@ -46,6 +46,8 @@ class Writer:
         tracer=None,
         script_path: str | None = None,
         fp=None,
+        *,
+        outer_chunks: bool | None = None,
     ) -> None:
         self._path = Path(path) if path is not None else None
         self._fh = fp
@@ -69,8 +71,14 @@ class Writer:
         self._register_file(self.script_path)
         self._strings: dict[str, int] = {}
         self._offset = 0
+        if outer_chunks is None:
+            outer_chunks = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
+        self.outer_chunks = bool(outer_chunks)
         if os.getenv("PYNYTPROF_DEBUG"):
-            print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
+            print(
+                f"DEBUG: Writer initialized with empty buffers; outer_chunks={self.outer_chunks}",
+                file=sys.stderr,
+            )
 
     def _string_index(self, s: str) -> int:
         idx = self._strings.get(s)
@@ -116,7 +124,7 @@ class Writer:
             for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1])
         )
         self._write_chunk(b"F", payload)
-        self._offset += 5 + len(payload)
+        self._offset += (5 if self.outer_chunks else 0) + len(payload)
         self._payloads[b"F"] = bytearray()
 
     def _write_header(self) -> None:
@@ -196,8 +204,15 @@ class Writer:
                     f"       first16={first16} last16={last16}",
                     file=sys.stderr,
                 )
-        _debug_write(self._fh, tag)
-        _debug_write(self._fh, struct.pack("<I", len(payload)))
+        if self.outer_chunks:
+            _debug_write(self._fh, tag)
+            _debug_write(self._fh, struct.pack("<I", len(payload)))
+        else:
+            if os.getenv("PYNYTPROF_DEBUG"):
+                print(
+                    "DEBUG: outer_chunks=False -> emitting payload only",
+                    file=sys.stderr,
+                )
         if payload:
             _debug_write(self._fh, payload)
 
@@ -265,7 +280,7 @@ class Writer:
         # emit S chunk first
         s_payload = bytes(self._payloads.get(b"S", b""))
         self._write_chunk(b"S", s_payload)
-        self._offset += 5 + len(s_payload)
+        self._offset += (5 if self.outer_chunks else 0) + len(s_payload)
 
         # emit F chunk built from registered files
         if self._file_ids and not self._payloads[b"F"]:
@@ -273,12 +288,12 @@ class Writer:
         else:
             f_payload = bytes(self._payloads.get(b"F", b""))
             self._write_chunk(b"F", f_payload)
-            self._offset += 5 + len(f_payload)
+            self._offset += (5 if self.outer_chunks else 0) + len(f_payload)
 
         for tag in [b"D", b"C"]:
             payload = bytes(self._payloads.get(tag, b""))
             self._write_chunk(tag, payload)
-            self._offset += 5 + len(payload)
+            self._offset += (5 if self.outer_chunks else 0) + len(payload)
 
         # final end marker is a raw byte with no length
         _debug_write(self._fh, b"E")
