@@ -122,6 +122,7 @@ def _write_nytprof(out_path: Path) -> None:
     w.__enter__()
     try:
         import struct
+        from pynytprof.protocol import write_u32
 
         emitted_d = False
         d_payload = b""
@@ -133,11 +134,13 @@ def _write_nytprof(out_path: Path) -> None:
             fid = 0
             try:
                 st = os.stat(_script_path)
-                f_payload = (
-                    struct.pack("<IIII", fid, 0x10, st.st_size, int(st.st_mtime))
-                    + str(_script_path).encode()
-                    + b"\0"
-                )
+                f_buf = bytearray()
+                f_buf += write_u32(fid)
+                f_buf += write_u32(0x10)
+                f_buf += write_u32(st.st_size)
+                f_buf += write_u32(int(st.st_mtime))
+                f_buf += str(_script_path).encode() + b"\0"
+                f_payload = bytes(f_buf)
                 w.write_chunk(b"F", f_payload)
             except OSError:
                 pass
@@ -146,26 +149,25 @@ def _write_nytprof(out_path: Path) -> None:
             w._stmt_records.extend(_stmt_records)
             emitted_d = bool(_stmt_records)
         elif _stmt_records:
+            from pynytprof.protocol import write_u32
+
             buf = bytearray()
             for _, line, dur in _stmt_records:
-                buf += struct.pack("<BIIQ", 1, fid, line, dur)
+                buf.append(1)
+                buf += write_u32(fid)
+                buf += write_u32(line)
+                buf += struct.pack("<Q", dur)
             buf.append(0)
             d_payload = bytes(buf)
             emitted_d = True
 
-        recs = []
+        payload = bytearray()
         for (_, line), (calls, inc, exc) in sorted(_line_hits.items()):
-            recs.append(
-                struct.pack(
-                    "<IIIQQ",
-                    fid,
-                    line,
-                    calls,
-                    inc,
-                    exc,
-                )
-            )
-        payload = b"".join(recs)
+            payload += write_u32(fid)
+            payload += write_u32(line)
+            payload += write_u32(calls)
+            payload += struct.pack("<QQ", inc, exc)
+        payload = bytes(payload)
         if payload:
             w.write_chunk(b"S", payload)
         if d_payload:
@@ -180,14 +182,15 @@ def _write_nytprof(out_path: Path) -> None:
             def ns2ticks(ns: int) -> int:
                 return ns // 100
 
-            c_parts = []
+            c_parts = bytearray()
             for (caller, callee), cnt in _calls.items():
                 inc = ns2ticks(_edge_time_ns.get((caller, callee), 0))
-                c_parts.append(
-                    struct.pack("<IIIQQ", id_map[caller], id_map[callee], cnt, inc, inc)
-                )
+                c_parts += write_u32(id_map[caller])
+                c_parts += write_u32(id_map[callee])
+                c_parts += write_u32(cnt)
+                c_parts += struct.pack("<QQ", inc, inc)
             if c_parts:
-                w.write_chunk(b"C", b"".join(c_parts))
+                w.write_chunk(b"C", bytes(c_parts))
                 emitted_c = True
 
         if not emitted_d:
