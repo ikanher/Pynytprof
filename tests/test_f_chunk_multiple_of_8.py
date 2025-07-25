@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 import os, subprocess, sys
 from pathlib import Path
 from tests.conftest import parse_chunks

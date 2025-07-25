@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 def test_c_writer_chunks(tmp_path):
     import subprocess, sys, os
     from pathlib import Path

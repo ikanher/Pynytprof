@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 import struct
 
 from tests.test_header_spec import profile_bytes

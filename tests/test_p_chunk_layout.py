@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 from tests.conftest import get_chunk_start
 import os
 import struct

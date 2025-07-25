@@ -202,6 +202,7 @@ class Writer:
         self._offset = len(banner)
 
         self._write_raw_P()
+        first_token_offset = self._offset
         self._emit_new_fid(
             fid=1,
             eval_fid=0,
@@ -213,7 +214,16 @@ class Writer:
             utf8=False,
         )
         if os.getenv("PYNYTPROF_DEBUG"):
+            expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
             print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
+            print(
+                f"DEBUG: first_token_offset={first_token_offset}",
+                file=sys.stderr,
+            )
+            print(
+                f"DEBUG: header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}",
+                file=sys.stderr,
+            )
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         assert len(tag) == 1
@@ -334,9 +344,10 @@ class Writer:
             self._write_chunk(tag, payload)
             self._offset += (5 if self.outer_chunks else 0) + len(payload)
 
-        # final end marker is a raw byte with no length
-        _debug_write(self._fh, b"E")
-        self._offset += 1
+        # final end marker is only written when outer_chunks=True
+        if self.outer_chunks:
+            _debug_write(self._fh, b"E")
+            self._offset += 1
         self._fh.close()
         self._fh = None
 

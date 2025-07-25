@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 def test_chunk_layout_is_tag_len_payload(tmp_path):
     import os, subprocess, sys
     from pathlib import Path

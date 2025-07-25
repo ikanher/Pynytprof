@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 # tests/test_s_offset_matches_p_length.py
 import os
 import subprocess
