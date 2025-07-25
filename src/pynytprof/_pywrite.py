@@ -47,8 +47,6 @@ class Writer:
         tracer=None,
         script_path: str | None = None,
         fp=None,
-        *,
-        outer_chunks: bool | None = None,
     ) -> None:
         self._path = Path(path) if path is not None else None
         self._fh = fp
@@ -73,12 +71,9 @@ class Writer:
         self._strings: dict[str, int] = {}
         self._offset = 0
         self._tok = TokenWriter()
-        if outer_chunks is None:
-            outer_chunks = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
-        self.outer_chunks = bool(outer_chunks)
         if os.getenv("PYNYTPROF_DEBUG"):
             print(
-                f"DEBUG: Writer initialized with empty buffers; outer_chunks={self.outer_chunks}",
+                "DEBUG: Writer initialized with empty buffers", 
                 file=sys.stderr,
             )
 
@@ -147,7 +142,7 @@ class Writer:
             for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1])
         )
         self._write_chunk(b"F", payload)
-        self._offset += (5 if self.outer_chunks else 0) + len(payload)
+        self._offset += 5 + len(payload)
         self._payloads[b"F"] = bytearray()
 
     def _write_header(self) -> None:
@@ -197,25 +192,6 @@ class Writer:
 
         self._write_raw_P()
         first_token_offset = self._offset
-        path = Path(self.script_path)
-        stat = path.stat()
-        self._emit_new_fid(
-            fid=1,
-            eval_fid=0,
-            eval_line_num=0,
-            flags=0,
-            size=stat.st_size,
-            mtime=int(stat.st_mtime),
-            name=str(path),
-            utf8=True,
-        )
-        if not self.outer_chunks:
-            with path.open("rb") as f:
-                for lineno, line in enumerate(f, 1):
-                    line = line.rstrip(b"\n")
-                    payload = self._tok.write_src_line(1, lineno, line, False)
-                    _debug_write(self._fh, payload)
-                    self._offset += len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
             print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
@@ -256,15 +232,8 @@ class Writer:
                     f"       first16={first16} last16={last16}",
                     file=sys.stderr,
                 )
-        if self.outer_chunks:
-            _debug_write(self._fh, tag)
-            _debug_write(self._fh, struct.pack("<I", len(payload)))
-        else:
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(
-                    "DEBUG: outer_chunks=False -> emitting payload only",
-                    file=sys.stderr,
-                )
+        _debug_write(self._fh, tag)
+        _debug_write(self._fh, struct.pack("<I", len(payload)))
         if payload:
             _debug_write(self._fh, payload)
 
@@ -334,7 +303,7 @@ class Writer:
         # emit S chunk first
         s_payload = bytes(self._payloads.get(b"S", b""))
         self._write_chunk(b"S", s_payload)
-        self._offset += (5 if self.outer_chunks else 0) + len(s_payload)
+        self._offset += 5 + len(s_payload)
 
         # emit F chunk built from registered files
         if self._file_ids and not self._payloads[b"F"]:
@@ -342,17 +311,15 @@ class Writer:
         else:
             f_payload = bytes(self._payloads.get(b"F", b""))
             self._write_chunk(b"F", f_payload)
-            self._offset += (5 if self.outer_chunks else 0) + len(f_payload)
+            self._offset += 5 + len(f_payload)
 
         for tag in [b"D", b"C"]:
             payload = bytes(self._payloads.get(tag, b""))
             self._write_chunk(tag, payload)
-            self._offset += (5 if self.outer_chunks else 0) + len(payload)
+            self._offset += 5 + len(payload)
 
-        # final end marker is only written when outer_chunks=True
-        if self.outer_chunks:
-            _debug_write(self._fh, b"E")
-            self._offset += 1
+        self._write_chunk(b"E", b"")
+        self._offset += 5
         self._fh.close()
         self._fh = None
 
