@@ -4,11 +4,26 @@ import sys
 from pathlib import Path
 
 from tests.utils import newest_profile_file, parse_nv_size_from_banner
-from pynytprof.tags import NYTP_TAG_NEW_FID
+from pynytprof.tokens import (
+    NYTP_TAG_NEW_FID,
+    NYTP_TAG_SRC_LINE,
+    NYTP_TAG_STRING,
+    NYTP_TAG_STRING_UTF8,
+)
 from pynytprof.protocol import read_u32, read_i32
 
 
-def test_first_token_is_new_fid(tmp_path):
+def read_str(buf: bytes, off: int) -> tuple[bytes, int]:
+    tag = buf[off]
+    assert tag in (NYTP_TAG_STRING, NYTP_TAG_STRING_UTF8)
+    off += 1
+    length, off = read_u32(buf, off)
+    s = buf[off : off + length]
+    off += length
+    return s, off
+
+
+def test_first_tokens_are_new_fid(tmp_path):
     env = {
         **os.environ,
         "PYNYTPROF_WRITER": "py",
@@ -35,15 +50,22 @@ def test_first_token_is_new_fid(tmp_path):
     flags, off = read_u32(data, off)
     size, off = read_u32(data, off)
     mtime, off = read_u32(data, off)
-    name_len, off = read_i32(data, off)
-    name = data[off : off + abs(name_len)]
+    name, off = read_str(data, off)
 
     assert fid == 1
     assert eval_fid == 0
     assert eval_line == 0
     assert flags == 0
-    assert size == 0
-    assert mtime == 0
-    assert name == b"(unknown)"
-    assert name_len == len(b"(unknown)")
+    assert size > 0
+    assert mtime > 0
+    assert name.decode().endswith("example_script.py")
+
+    assert data[off] == NYTP_TAG_SRC_LINE
+    off += 1
+    fid2, off = read_u32(data, off)
+    line_no, off = read_u32(data, off)
+    text, off = read_str(data, off)
+    assert fid2 == fid
+    assert line_no >= 1
+    assert text
 
