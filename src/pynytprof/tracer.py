@@ -99,12 +99,14 @@ def _emit_p(writer: Writer) -> None:
 
 
 def _write_nytprof(out_path: Path) -> None:
+    outer_chunks = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
     try:
         w = Writer(
             str(out_path),
             start_ns=_start_ns,
             ticks_per_sec=TICKS_PER_SEC,
             script_path=str(_script_path),
+            outer_chunks=outer_chunks,
         )
     except TypeError:
         w = Writer(
@@ -200,10 +202,12 @@ def _write_nytprof(out_path: Path) -> None:
 
 
 def _write_nytprof_vec(out_path: Path, files, defs, calls, lines) -> None:
+    outer_chunks = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
     with Writer(
         str(out_path),
         start_ns=_start_ns,
         ticks_per_sec=TICKS_PER_SEC,
+        outer_chunks=outer_chunks,
     ) as w:
         if os.environ.get("PYNYTPROF_DEBUG"):
             print(

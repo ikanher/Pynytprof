@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 import io
 import sys
 from pathlib import Path

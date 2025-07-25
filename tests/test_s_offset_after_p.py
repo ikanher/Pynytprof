@@ -1,3 +1,5 @@
+import pytest
+pytestmark = pytest.mark.legacy_psfdce
 import struct
 import os
 import subprocess

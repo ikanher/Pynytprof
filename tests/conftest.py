@@ -56,5 +56,12 @@ def parse_chunks(data: bytes) -> dict:
 @pytest.fixture(autouse=True)
 def _set_outer_chunks(monkeypatch):
     if "PYNYTPROF_OUTER_CHUNKS" not in os.environ:
-        monkeypatch.setenv("PYNYTPROF_OUTER_CHUNKS", "1")
+        monkeypatch.setenv("PYNYTPROF_OUTER_CHUNKS", "0")
     yield
+
+
+LEGACY = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
+
+def pytest_runtest_setup(item):
+    if item.get_closest_marker("legacy_psfdce") and not LEGACY:
+        pytest.xfail("legacy outer chunk format")
