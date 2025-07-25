@@ -10,6 +10,8 @@ from email.utils import format_datetime
 from importlib import resources
 import re
 
+from ._debug import DBG, log, hexdump_around
+
 from .token_writer import TokenWriter
 
 try:  # Python 3.9+
@@ -33,8 +35,8 @@ def _chunk(tok: bytes, payload: bytes) -> bytes:
 
 
 def _debug_write(fh, data: bytes) -> None:
-    if os.getenv("PYNYTPROF_DEBUG"):
-        print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
+    if DBG.active:
+        log(f"about to write raw data of length={len(data)}")
     fh.write(data)
 
 
@@ -71,11 +73,14 @@ class Writer:
         self._strings: dict[str, int] = {}
         self._offset = 0
         self._tok = TokenWriter()
-        if os.getenv("PYNYTPROF_DEBUG"):
-            print(
-                "DEBUG: Writer initialized with empty buffers", 
-                file=sys.stderr,
-            )
+        self._trace_fp = None
+        if DBG.active:
+            log("Writer initialized with empty buffers")
+            self._buffer = bytearray()
+            self._chunk_meta: list[tuple[str, int, int]] = []
+        else:
+            self._buffer = bytearray()
+            self._chunk_meta = []
 
     def _string_index(self, s: str) -> int:
         idx = self._strings.get(s)
@@ -106,6 +111,13 @@ class Writer:
         assert self.nv_size == struct.calcsize("d")
         payload = self._tok.write_p_record(pid, ppid, tstamp)
         _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(payload)
+            buf = self._buffer[-17:]
+            pid_v = int.from_bytes(buf[1:5], "little")
+            ppid_v = int.from_bytes(buf[5:9], "little")
+            ts = struct.unpack("<d", buf[9:17])[0]
+            log(f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={buf.hex(' ')}")
         self._offset += len(payload)
 
     def _emit_new_fid(
@@ -132,6 +144,8 @@ class Writer:
             name,
         )
         _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(payload)
         self._offset += len(payload)
 
     def _write_F_chunk(self) -> None:
@@ -185,56 +199,42 @@ class Writer:
         ]
 
         banner = b"\n".join(lines).rstrip(b"\n") + b"\n"
-        if os.getenv("PYNYTPROF_DEBUG"):
+        if DBG.active:
             last_line = banner.rstrip(b"\n").split(b"\n")[-1] + b"\n"
-            print(f"DEBUG: writing banner len={len(banner)}", file=sys.stderr)
-            print(f"DEBUG: banner_end={last_line!r}", file=sys.stderr)
+            log(f"writing banner len={len(banner)}")
+            log(f"banner_end={last_line!r}")
 
-        self._fh.write(banner)
+        _debug_write(self._fh, banner)
+        if DBG.active:
+            self._buffer.extend(banner)
         self._offset = len(banner)
 
         self._write_raw_P()
         first_token_offset = self._offset
-        if os.getenv("PYNYTPROF_DEBUG"):
+        if DBG.active:
             expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
-            print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
-            print(
-                f"DEBUG: first_token_offset={first_token_offset}",
-                file=sys.stderr,
-            )
-            print(
-                f"DEBUG: header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}",
-                file=sys.stderr,
+            log("wrote raw P record (17 B)")
+            log(f"first_token_offset={first_token_offset}")
+            log(
+                f"header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}"
             )
 
     def _write_chunk(self, tag: bytes, payload: bytes) -> None:
         assert len(tag) == 1
         if self._fh is None:
             raise ValueError("writer not opened")
-        if os.getenv("PYNYTPROF_DEBUG"):
+        if DBG.active:
             offset = self._fh.tell()
             from hashlib import sha256
 
             digest = sha256(payload).hexdigest() if payload else ""
             first16 = payload[:16].hex()
             last16 = payload[-16:].hex() if payload else ""
-            print(
-                f"DEBUG: write tag={tag.decode()} len={len(payload)}",
-                file=sys.stderr,
-            )
-            print(
-                f"       offset=0x{offset:x}",
-                file=sys.stderr,
-            )
-            print(
-                f"       sha256={digest}",
-                file=sys.stderr,
-            )
+            log(f"write tag={tag.decode()} len={len(payload)}")
+            log(f"       offset=0x{offset:x}")
+            log(f"       sha256={digest}")
             if payload:
-                print(
-                    f"       first16={first16} last16={last16}",
-                    file=sys.stderr,
-                )
+                log(f"       first16={first16} last16={last16}")
                 from .protocol import read_u32
                 from .tags import KNOWN_TAGS
 
@@ -251,14 +251,17 @@ class Writer:
                     if off >= limit:
                         break
                 if dec:
-                    print(
-                        "       preview=" + " ".join(dec),
-                        file=sys.stderr,
-                    )
+                    log("       preview=" + " ".join(dec))
         _debug_write(self._fh, tag)
         _debug_write(self._fh, struct.pack("<I", len(payload)))
         if payload:
             _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(tag)
+            self._buffer.extend(struct.pack("<I", len(payload)))
+            if payload:
+                self._buffer.extend(payload)
+            self._chunk_meta.append((tag.decode(), self._offset, len(payload)))
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
@@ -277,6 +280,9 @@ class Writer:
             if self._path is None:
                 raise ValueError("no output path specified")
             self._fh = open(self._path, "wb")
+        if DBG.active and self._path is not None:
+            self._trace_fp = open(str(self._path) + ".trace.txt", "w")
+            DBG.extras.append(self._trace_fp)
         self._write_header()
         return self
 
@@ -326,12 +332,12 @@ class Writer:
         elif not self._payloads[b"D"]:
             self._payloads[b"D"] = bytearray()
 
-        if os.getenv("PYNYTPROF_DEBUG"):
+        if DBG.active:
             summary = {
                 t.decode(): len(self._payloads.get(t, b"")) for t in [b"S", b"F", b"D", b"C"]
             }
             summary["E"] = 0
-            print(f"FINAL CHUNKS: {summary}", file=sys.stderr)
+            log(f"FINAL CHUNKS: {summary}")
 
         # emit S chunk first
         s_payload = bytes(self._payloads.get(b"S", b""))
@@ -353,8 +359,17 @@ class Writer:
 
         self._write_chunk(b"E", b"")
         self._offset += 5
+        if DBG.active:
+            log("\nDEBUG  CHUNK  off   len")
+            for tag, off, l in self._chunk_meta:
+                log(f"      {tag:<2}   0x{off:06x} {l}")
+            if DBG.at_off:
+                hexdump_around(bytes(self._buffer), DBG.at_off)
         self._fh.close()
         self._fh = None
+        if DBG.active and self._trace_fp:
+            DBG.extras.remove(self._trace_fp)
+            self._trace_fp.close()
 
     def finalize(self) -> None:
         self.close()
