@@ -1,13 +1,81 @@
 from pathlib import Path
 import struct
 
-__all__ = ["read"]
+__all__ = ["read", "header_scan"]
 
 _MAGIC = b"NYTPROF\0"
 _MAJOR = 5
 _MINOR = 0
 _ASCII_PREFIX = b"NYTProf 5 0\n"
 _CHUNK_START = b"PACDFSET"
+
+
+def header_scan(data: bytes) -> tuple[int, int, int]:
+    """Scan an ASCII NYTProf header returning offsets.
+
+    Parameters
+    ----------
+    data:
+        Full bytes of the profile file.
+
+    Returns
+    -------
+    (header_len, p_pos, first_token_off)
+    """
+
+    if not data.startswith(_ASCII_PREFIX):
+        raise ValueError("missing ASCII header")
+
+    # expect first line exactly "NYTProf <major> <minor>\n"
+    first_nl = data.find(b"\n")
+    if first_nl == -1:
+        raise ValueError("truncated header")
+    if data[: first_nl + 1] != _ASCII_PREFIX:
+        raise ValueError("bad header line")
+
+    off = first_nl + 1
+    nv_size: int | None = None
+
+    while True:
+        if off >= len(data):
+            raise ValueError("truncated header")
+
+        nl = data.find(b"\n", off)
+        if nl == -1:
+            raise ValueError("truncated header")
+
+        line = data[off:nl]
+        after = data[nl + 1 : nl + 2]
+
+        # ensure ASCII only
+        if any(b >= 0x80 for b in line):
+            raise ValueError("non-ascii header")
+
+        if line:
+            if line.startswith((b":", b"!")) and b"=" in line:
+                key, val = line[1:].split(b"=", 1)
+                if key == b"nv_size":
+                    try:
+                        nv_size = int(val.decode())
+                    except Exception as exc:
+                        raise ValueError("bad nv_size") from exc
+            elif line.startswith(b"#"):
+                pass
+            else:
+                raise ValueError("malformed header line")
+
+        if after == b"P":
+            header_len = nl + 1
+            p_pos = nl + 1
+            break
+
+        off = nl + 1
+
+    if nv_size is None or nv_size not in {8, 16}:
+        raise ValueError("missing or unsupported nv_size")
+
+    first_token_off = p_pos + 1 + 4 + 4 + nv_size
+    return header_len, p_pos, first_token_off
 
 
 def read(path: str) -> dict:
