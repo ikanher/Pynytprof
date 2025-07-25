@@ -11,6 +11,8 @@ from email.utils import format_datetime
 from importlib import resources
 import re
 
+from .token_writer import TokenWriter
+
 try:  # Python 3.9+
     _version_text = resources.files(__package__).joinpath("nytp_version.h").read_text()
 except AttributeError:  # pragma: no cover - fallback for Python < 3.9
@@ -71,6 +73,7 @@ class Writer:
         self._register_file(self.script_path)
         self._strings: dict[str, int] = {}
         self._offset = 0
+        self._tok = TokenWriter()
         if outer_chunks is None:
             outer_chunks = os.getenv("PYNYTPROF_OUTER_CHUNKS", "0") == "1"
         self.outer_chunks = bool(outer_chunks)
@@ -107,14 +110,9 @@ class Writer:
         if tstamp is None:
             tstamp = time.time()
         assert self.nv_size == struct.calcsize("d")
-        payload = (
-            struct.pack("<I", pid)
-            + struct.pack("<I", ppid)
-            + struct.pack("<d", tstamp)
-        )
-        _debug_write(self._fh, b"P")
+        payload = self._tok.write_p_record(pid, ppid, tstamp)
         _debug_write(self._fh, payload)
-        self._offset += 1 + len(payload)
+        self._offset += len(payload)
 
     def _emit_new_fid(
         self,
@@ -130,19 +128,16 @@ class Writer:
         if self._fh is None:
             raise ValueError("writer not opened")
 
-        from .protocol import write_tag_u32, write_u32, output_str
-        from .tags import NYTP_TAG_NEW_FID
-
-        payload = bytearray()
-        payload += write_tag_u32(NYTP_TAG_NEW_FID, fid)
-        payload += write_u32(eval_fid)
-        payload += write_u32(eval_line_num)
-        payload += write_u32(flags)
-        payload += write_u32(size)
-        payload += write_u32(mtime)
-        payload += output_str(name, utf8)
-
-        _debug_write(self._fh, bytes(payload))
+        payload = self._tok.write_new_fid(
+            fid,
+            eval_fid,
+            eval_line_num,
+            flags,
+            size,
+            mtime,
+            name,
+        )
+        _debug_write(self._fh, payload)
         self._offset += len(payload)
 
     def _write_F_chunk(self) -> None:
@@ -203,16 +198,25 @@ class Writer:
 
         self._write_raw_P()
         first_token_offset = self._offset
+        path = Path(self.script_path)
+        stat = path.stat()
         self._emit_new_fid(
             fid=1,
             eval_fid=0,
             eval_line_num=0,
             flags=0,
-            size=0,
-            mtime=0,
-            name=b"(unknown)",
-            utf8=False,
+            size=stat.st_size,
+            mtime=int(stat.st_mtime),
+            name=str(path),
+            utf8=True,
         )
+        if not self.outer_chunks:
+            with path.open("rb") as f:
+                for lineno, line in enumerate(f, 1):
+                    line = line.rstrip(b"\n")
+                    payload = self._tok.write_src_line(1, lineno, line, False)
+                    _debug_write(self._fh, payload)
+                    self._offset += len(payload)
         if os.getenv("PYNYTPROF_DEBUG"):
             expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
             print("DEBUG: wrote raw P record (17 B)", file=sys.stderr)
