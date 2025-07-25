@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 from pynytprof.reader import header_scan
-from pynytprof.tags import NYTP_TAG_NEW_FID
 from tests.utils import newest_profile_file, parse_nv_size_from_banner
 
 
@@ -13,7 +12,6 @@ def test_header_scan_matches_perl(tmp_path):
         **os.environ,
         "PYNYTPROF_WRITER": "py",
         "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
-        "PYNYTPROF_OUTER_CHUNKS": "0",
     }
     script = Path(__file__).with_name("example_script.py")
     subprocess.check_call(
@@ -24,7 +22,7 @@ def test_header_scan_matches_perl(tmp_path):
     out = newest_profile_file(tmp_path)
     data = out.read_bytes()
     header_len, p_pos, first_token_off = header_scan(data)
-    assert data[first_token_off] == NYTP_TAG_NEW_FID
+    assert data[first_token_off:first_token_off + 1] == b"S"
     nv_size = parse_nv_size_from_banner(data)
     assert first_token_off == p_pos + 1 + 4 + 4 + nv_size
 

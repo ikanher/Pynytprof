@@ -37,6 +37,23 @@ class Writer:
 
             print("DEBUG: Writer initialized with empty buffers", file=sys.stderr)
 
+    def _write_chunk(self, tag: bytes, payload: bytes) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        if os.getenv("PYNYTPROF_DEBUG"):
+            import sys
+
+            offset = self._fh.tell()
+            print(
+                f"DEBUG: write tag={tag.decode()} len={len(payload)}",
+                file=sys.stderr,
+            )
+            print(f"       offset=0x{offset:x}", file=sys.stderr)
+        self._fh.write(tag)
+        self._fh.write(struct.pack("<I", len(payload)))
+        if payload:
+            self._fh.write(payload)
+
     def _buffer_chunk(self, tag: bytes, payload: bytes) -> None:
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys
@@ -121,24 +138,20 @@ class Writer:
         if os.getenv("PYNYTPROF_DEBUG"):
             print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
         self._fh.write(data)
-        for tag in [b"F", b"S", b"D", b"C", b"E"]:
-            payload = self._buf.get(tag, b"") if tag != b"E" else b""
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(
-                    f"DEBUG: emitting chunk tag={tag.decode()} len={len(payload)}", file=sys.stderr
-                )
-            data = tag
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
-            data = len(payload).to_bytes(4, "little")
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
-            data = payload
-            if os.getenv("PYNYTPROF_DEBUG"):
-                print(f"DEBUG: about to write raw data of length={len(data)}", file=sys.stderr)
-            self._fh.write(data)
+
+        s_payload = bytes(self._buf.get(b"S", b""))
+        self._write_chunk(b"S", s_payload)
+
+        f_payload = bytes(self._buf.get(b"F", b""))
+        self._write_chunk(b"F", f_payload)
+
+        d_payload = bytes(self._buf.get(b"D", b""))
+        self._write_chunk(b"D", d_payload)
+
+        c_payload = bytes(self._buf.get(b"C", b""))
+        self._write_chunk(b"C", c_payload)
+
+        self._write_chunk(b"E", b"")
 
         if os.getenv("PYNYTPROF_DEBUG"):
             import sys

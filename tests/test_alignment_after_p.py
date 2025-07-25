@@ -11,7 +11,6 @@ def test_alignment_after_p(tmp_path):
         **os.environ,
         "PYNYTPROF_WRITER": "py",
         "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
-        "PYNYTPROF_OUTER_CHUNKS": "0",
     }
     script = Path(__file__).with_name("example_script.py")
     subprocess.check_call(
@@ -24,6 +23,5 @@ def test_alignment_after_p(tmp_path):
     p_off = data.index(b"\nP") + 1
     nv_size = parse_nv_size_from_banner(data)
     stream_off = p_off + 1 + 4 + 4 + nv_size
-    print("stream_off", stream_off)
-    assert data[stream_off] not in {ord("S"), ord("F"), ord("D"), ord("C"), ord("E")}
+    assert data[stream_off:stream_off + 1] == b"S"
 
