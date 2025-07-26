@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import struct
 
-from .protocol import write_tag_u32, write_u32
+from ._proto import (
+    encode_u32,
+    encode_i32,
+    le32,
+    ledouble,
+    write_string,
+)
 from .tokens import (
     NYTP_TAG_NEW_FID,
     NYTP_TAG_SRC_LINE,
     NYTP_TAG_STRING,
     NYTP_TAG_STRING_UTF8,
+    NYTP_TAG_TIME_LINE,
 )
 
 
@@ -16,19 +23,12 @@ def output_str_py(val: bytes | str, utf8: bool = False) -> bytes:
         data = val.encode("utf-8")
     else:
         data = val
-    tag = NYTP_TAG_STRING_UTF8 if utf8 else NYTP_TAG_STRING
-    out = bytearray()
-    out += write_tag_u32(tag, len(data))
-    out += data
-    return bytes(out)
+    return write_string(data, utf8=utf8)
 
 
 class TokenWriter:
     def write_p_record(self, pid: int, ppid: int, t: float) -> bytes:
-        payload = struct.pack("<I", pid)
-        payload += struct.pack("<I", ppid)
-        payload += struct.pack("<d", t)
-        return b"P" + payload
+        return b"P" + le32(pid) + le32(ppid) + ledouble(t)
 
     def write_new_fid(
         self,
@@ -47,12 +47,13 @@ class TokenWriter:
             p = path.encode("utf-8")
             utf8 = True
         out = bytearray()
-        out += write_tag_u32(NYTP_TAG_NEW_FID, fid)
-        out += write_u32(eval_fid)
-        out += write_u32(eval_line)
-        out += write_u32(flags)
-        out += write_u32(size)
-        out += write_u32(mtime)
+        out.append(NYTP_TAG_NEW_FID)
+        out += encode_u32(fid)
+        out += encode_u32(eval_fid)
+        out += encode_u32(eval_line)
+        out += encode_u32(flags)
+        out += encode_u32(size)
+        out += encode_u32(mtime)
         out += output_str_py(p, utf8=utf8)
         return bytes(out)
 
@@ -69,7 +70,18 @@ class TokenWriter:
         else:
             data = text
         out = bytearray()
-        out += write_tag_u32(NYTP_TAG_SRC_LINE, fid)
-        out += write_u32(line_no)
+        out.append(NYTP_TAG_SRC_LINE)
+        out += encode_u32(fid)
+        out += encode_u32(line_no)
         out += output_str_py(data, utf8=is_utf8)
+        return bytes(out)
+
+    def write_time_line(
+        self, fid: int, line_no: int, elapsed: int, overflow: int
+    ) -> bytes:
+        out = bytearray()
+        out.append(NYTP_TAG_TIME_LINE)
+        out += encode_i32(elapsed)
+        out += encode_u32(fid)
+        out += encode_u32(line_no)
         return bytes(out)
