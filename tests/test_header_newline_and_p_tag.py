@@ -1,6 +1,7 @@
 import os, subprocess, sys
 from pathlib import Path
 from tests.conftest import get_chunk_start
+from pynytprof.encoding import decode_u32
 
 
 def test_exactly_two_lf_before_p(tmp_path):
@@ -21,5 +22,5 @@ def test_exactly_two_lf_before_p(tmp_path):
     assert lf_count == 1, (
         f"expected exactly 1 LF before 'P', found {lf_count}"
     )
-    pid = int.from_bytes(data[idx_p+1:idx_p+5], 'little')
+    pid, _ = decode_u32(data, idx_p + 1)
     assert pid == p.pid, "PID not at expected offset"

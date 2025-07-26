@@ -27,3 +27,38 @@ def encode_u32(n: int) -> bytes:
 def encode_i32(n: int) -> bytes:
     '''Two’s-complement pass-through used by NYTProf.'''
     return encode_u32(n & 0xFFFFFFFF)
+
+
+def decode_u32(buf: bytes, off: int = 0) -> tuple[int, int]:
+    """Decode a NYTProf varint starting at ``off``."""
+    first = buf[off]
+    off += 1
+    if first < 0x80:
+        return first, off
+    if first == 0xFF:
+        val = int.from_bytes(buf[off:off + 4], 'big')
+        off += 4
+        return val, off
+
+    bytes_read = [first]
+    byte = first
+    while byte >= 0x80:
+        byte = buf[off]
+        off += 1
+        bytes_read.append(byte)
+        if byte < 0x80:
+            break
+
+    n = len(bytes_read)
+    masks = {1: 0x7F, 2: 0x7F, 3: 0x3F, 4: 0x1F}
+    val = bytes_read[0] & masks.get(n, 0x7F)
+    for b in bytes_read[1:]:
+        val = (val << 7) | (b & 0x7F)
+    return val, off
+
+
+def decode_i32(buf: bytes, off: int = 0) -> tuple[int, int]:
+    u, off = decode_u32(buf, off)
+    if u & 0x80000000:
+        u = -((~u + 1) & 0xFFFFFFFF)
+    return u, off

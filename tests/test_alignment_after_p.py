@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from tests.utils import newest_profile_file, parse_nv_size_from_banner
+from pynytprof.encoding import decode_u32
 
 
 def test_alignment_after_p(tmp_path):
@@ -22,6 +23,9 @@ def test_alignment_after_p(tmp_path):
     data = out.read_bytes()
     p_off = data.index(b"\nP") + 1
     nv_size = parse_nv_size_from_banner(data)
-    stream_off = p_off + 1 + 4 + 4 + nv_size
+    off = p_off + 1
+    _, off = decode_u32(data, off)
+    _, off = decode_u32(data, off)
+    stream_off = off + nv_size
     assert data[stream_off:stream_off + 1] == b"S"
 

@@ -116,12 +116,16 @@ class Writer:
         payload = self._tok.write_p_record(pid, ppid, tstamp)
         _debug_write(self._fh, payload)
         if DBG.active:
+            from .protocol import read_u32
+
             self._buffer.extend(payload)
-            buf = self._buffer[-17:]
-            pid_v = int.from_bytes(buf[1:5], "little")
-            ppid_v = int.from_bytes(buf[5:9], "little")
-            ts = struct.unpack("<d", buf[9:17])[0]
-            log(f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={buf.hex(' ')}")
+            off = 1
+            pid_v, off = read_u32(payload, off)
+            ppid_v, off = read_u32(payload, off)
+            ts = struct.unpack("<d", payload[off:off + 8])[0]
+            log(
+                f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={payload.hex(' ')}"
+            )
         self._offset += len(payload)
 
     def _emit_new_fid(
@@ -213,11 +217,16 @@ class Writer:
             self._buffer.extend(banner)
         self._offset = len(banner)
 
-        self._write_raw_P()
+        pid = os.getpid()
+        ppid = os.getppid()
+        self._write_raw_P(pid=pid, ppid=ppid)
         first_token_offset = self._offset
         if DBG.active:
-            expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
-            log("wrote raw P record (17 B)")
+            from .encoding import encode_u32
+
+            rec_len = 1 + len(encode_u32(pid)) + len(encode_u32(ppid)) + 8
+            expected_stream_off = len(banner) + rec_len
+            log(f"wrote raw P record ({rec_len} B)")
             log(f"first_token_offset={first_token_offset}")
             log(
                 f"header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}"

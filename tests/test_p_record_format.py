@@ -6,6 +6,7 @@ import struct
 import time
 from pathlib import Path
 import pytest
+from pynytprof.encoding import decode_u32
 
 
 def test_p_record_format(tmp_path):
@@ -23,8 +24,10 @@ def test_p_record_format(tmp_path):
     data = out.read_bytes()
     idx = get_chunk_start(data)
     assert data[idx:idx+1] == b"P"
-    payload = data[idx + 1 : idx + 17]
-    pid, ppid, ts = struct.unpack("<IId", payload)
+    off = idx + 1
+    pid, off = decode_u32(data, off)
+    ppid, off = decode_u32(data, off)
+    ts = struct.unpack("<d", data[off:off + 8])[0]
     assert pid == p.pid
     assert ppid == os.getpid()
     assert abs(ts - time.time()) < 1.0

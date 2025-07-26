@@ -74,7 +74,13 @@ def header_scan(data: bytes) -> tuple[int, int, int]:
     if nv_size is None or nv_size not in {8, 16}:
         raise ValueError("missing or unsupported nv_size")
 
-    first_token_off = p_pos + 1 + 4 + 4 + nv_size
+    from .encoding import decode_u32
+
+    off = p_pos + 1
+    _, off = decode_u32(data, off)  # pid
+    _, off = decode_u32(data, off)  # ppid
+    off += nv_size
+    first_token_off = off
     return header_len, p_pos, first_token_off
 
 

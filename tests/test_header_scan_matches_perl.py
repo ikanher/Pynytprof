@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pynytprof.reader import header_scan
 from tests.utils import newest_profile_file, parse_nv_size_from_banner
+from pynytprof.encoding import decode_u32
 
 
 def test_header_scan_matches_perl(tmp_path):
@@ -24,7 +25,10 @@ def test_header_scan_matches_perl(tmp_path):
     header_len, p_pos, first_token_off = header_scan(data)
     assert data[first_token_off:first_token_off + 1] == b"S"
     nv_size = parse_nv_size_from_banner(data)
-    assert first_token_off == p_pos + 1 + 4 + 4 + nv_size
+    off = p_pos + 1
+    _, off = decode_u32(data, off)
+    _, off = decode_u32(data, off)
+    assert first_token_off == off + nv_size
 
     last_nl = data.rfind(b"\n", 0, p_pos)
     bad = [(last_nl + 1 + i, b) for i, b in enumerate(data[last_nl + 1 : p_pos]) if b >= 0x80]

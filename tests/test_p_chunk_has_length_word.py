@@ -1,6 +1,9 @@
-import os, struct, subprocess, sys
+import os
+import subprocess
+import sys
 from pathlib import Path
 from tests.conftest import get_chunk_start
+from pynytprof.encoding import encode_u32, decode_u32
 
 
 def test_p_chunk_payload_length(tmp_path):
@@ -13,7 +16,10 @@ def test_p_chunk_payload_length(tmp_path):
     p.wait()
     data = out.read_bytes()
     idx = get_chunk_start(data)
-    payload = data[idx + 1 : idx + 17]
-    assert len(payload) == 16
-    pid = struct.unpack_from('<I', payload)[0]
+    off = idx + 1
+    pid, off = decode_u32(data, off)
+    ppid, off = decode_u32(data, off)
+    length = off + 8 - (idx + 1)
+    expected = len(encode_u32(pid)) + len(encode_u32(ppid)) + 8
+    assert length == expected
     assert pid == p.pid
