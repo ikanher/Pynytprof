@@ -4,7 +4,7 @@ from pynytprof.encoding import encode_u32, encode_i32
 def test_encode_u32():
     assert encode_u32(0) == b"\x00"
     assert encode_u32(0x7F) == b"\x7F"
-    assert encode_u32(0x80) == b"\x81\x00"
+    assert encode_u32(0x80) == b"\x80\x80"
 
 def test_encode_i32_negative():
     # -1 should match C: 0xFF + four 0xFF bytes

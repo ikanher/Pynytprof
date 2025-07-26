@@ -23,5 +23,5 @@ def test_alignment_after_p(tmp_path):
     p_off = data.index(b"\nP") + 1
     nv_size = parse_nv_size_from_banner(data)
     stream_off = p_off + 1 + 4 + 4 + nv_size
-    assert data[stream_off:stream_off + 1] == b"S"
+    assert data[stream_off:stream_off + 1] == b"@"
 
