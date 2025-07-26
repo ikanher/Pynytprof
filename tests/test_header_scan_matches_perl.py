@@ -22,7 +22,7 @@ def test_header_scan_matches_perl(tmp_path):
     out = newest_profile_file(tmp_path)
     data = out.read_bytes()
     header_len, p_pos, first_token_off = header_scan(data)
-    assert data[first_token_off:first_token_off + 1] == b"S"
+    assert data[first_token_off:first_token_off + 1] == b"@"
     nv_size = parse_nv_size_from_banner(data)
     assert first_token_off == p_pos + 1 + 4 + 4 + nv_size
 

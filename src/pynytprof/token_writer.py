@@ -9,13 +9,8 @@ from ._proto import (
     ledouble,
     write_string,
 )
-from .tokens import (
-    NYTP_TAG_NEW_FID,
-    NYTP_TAG_SRC_LINE,
-    NYTP_TAG_STRING,
-    NYTP_TAG_STRING_UTF8,
-    NYTP_TAG_TIME_LINE,
-)
+from .nytprof_tags import NYTP_TAG_NEW_FID, NYTP_TAG_SRC_LINE, NYTP_TAG_STRING, NYTP_TAG_STRING_UTF8, NYTP_TAG_TIME_LINE
+
 
 
 def output_str_py(val: bytes | str, utf8: bool = False) -> bytes:

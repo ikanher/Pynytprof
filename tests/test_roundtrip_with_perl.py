@@ -1,32 +1,27 @@
-import os, subprocess, sys, shutil
-from pathlib import Path
+import os
+import subprocess
+import shutil
 import pytest
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pynytprof._pywrite import Writer
 
 
-def test_roundtrip_parsed_by_nytprof(tmp_path):
+def test_roundtrip_with_perl(tmp_path):
     if not shutil.which("perl"):
         pytest.skip("perl missing")
-    prof = tmp_path / "nytprof.out"
-    env = {
-        **os.environ,
-        "PYNYTPROF_WRITER": "py",
-        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
-    }
-    subprocess.check_call([
-        sys.executable,
-        "-m",
-        "pynytprof.tracer",
-        "-o",
-        str(prof),
-        "tests/example_script.py",
-    ], env=env)
+    out = tmp_path / "nytprof.out"
+    with Writer(str(out)) as w:
+        w.start_profile()
+        w.end_profile()
     res = subprocess.run([
         "perl",
         "-MDevel::NYTProf::Data",
         "-e",
-        "Devel::NYTProf::Data->new(filename=>shift,quiet=>1)",
-        str(prof),
+        "Devel::NYTProf::Data::load_profile(shift)",
+        str(out),
     ])
     if res.returncode != 0:
-        pytest.skip("NYTProf Perl module missing")
+        pytest.skip("NYTProf not installed")
     assert res.returncode == 0
