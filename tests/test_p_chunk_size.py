@@ -1,4 +1,8 @@
-import io, struct
+import io
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from pynytprof.protocol import read_u32
 from pynytprof._pywrite import Writer
 
 def test_p_record_is_17_bytes():
@@ -7,7 +11,7 @@ def test_p_record_is_17_bytes():
     w._write_raw_P()
     data = buf.getvalue()
     assert data[:1] == b'P'
-    assert len(data) == 17, (
-        f'P record should be 17 bytes (tag+payload), got {len(data)}'
-    )
+    pid, off = read_u32(data, 1)
+    _, off = read_u32(data, off)
+    assert len(data) == off + 8
 

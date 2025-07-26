@@ -1,6 +1,10 @@
 import re
 import os
+import sys
+from pathlib import Path
 import pytest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from pynytprof.protocol import read_u32
 
 
 def get_chunk_start(data):
@@ -19,16 +23,19 @@ def parse_chunks(data: bytes) -> dict:
         tag = data[idx : idx + 1]
         if tag in b"PDSCEF":
             if tag == b"P":
-                if idx + 17 > len(data):
-                    break
-                payload = data[idx + 1 : idx + 17]
                 off = idx
+                p = idx + 1
+                pid, p = read_u32(data, p)
+                ppid, p = read_u32(data, p)
+                if p + 8 > len(data):
+                    break
+                payload = data[idx + 1 : p + 8]
                 chunks[tag.decode()] = {
                     "offset": off,
-                    "length": 16,
+                    "length": len(payload),
                     "payload": payload,
                 }
-                idx += 17
+                idx = p + 8
                 continue
             if tag == b"E":
                 off = idx

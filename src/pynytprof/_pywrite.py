@@ -116,12 +116,17 @@ class Writer:
         payload = self._tok.write_p_record(pid, ppid, tstamp)
         _debug_write(self._fh, payload)
         if DBG.active:
+            from .protocol import read_u32
+
             self._buffer.extend(payload)
-            buf = self._buffer[-17:]
-            pid_v = int.from_bytes(buf[1:5], "little")
-            ppid_v = int.from_bytes(buf[5:9], "little")
-            ts = struct.unpack("<d", buf[9:17])[0]
-            log(f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={buf.hex(' ')}")
+            buf = payload
+            off = 1  # skip 'P'
+            pid_v, off = read_u32(buf, off)
+            ppid_v, off = read_u32(buf, off)
+            ts = struct.unpack("<d", buf[off:off + 8])[0]
+            log(
+                f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={buf.hex(' ')}"
+            )
         self._offset += len(payload)
 
     def _emit_new_fid(
@@ -216,8 +221,12 @@ class Writer:
         self._write_raw_P()
         first_token_offset = self._offset
         if DBG.active:
-            expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
-            log("wrote raw P record (17 B)")
+            from .encoding import encode_u32
+
+            pid_len = len(encode_u32(os.getpid()))
+            ppid_len = len(encode_u32(os.getppid()))
+            expected_stream_off = len(banner) + 1 + pid_len + ppid_len + self.nv_size
+            log(f"wrote raw P record ({pid_len + ppid_len + 9} B)")
             log(f"first_token_offset={first_token_offset}")
             log(
                 f"header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}"
@@ -450,9 +459,9 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         pid = os.getpid()
         ppid = os.getppid()
         tstamp = time.time()
-        payload = struct.pack("<I", pid) + struct.pack("<I", ppid) + struct.pack("<d", tstamp)
-        assert len(payload) == 16
-        f.write(b"P")
+        from .encoding import encode_u32
+
+        payload = b"P" + encode_u32(pid) + encode_u32(ppid) + struct.pack("<d", tstamp)
         f.write(payload)
 
         from .protocol import write_u32
