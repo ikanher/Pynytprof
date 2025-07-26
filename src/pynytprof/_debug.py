@@ -20,9 +20,12 @@ DBG = DebugConfig()
 
 def log(msg: str, level: int = 1) -> None:
     if DBG.active and DBG.level >= level:
-        print(msg, file=DBG.sink)
-        for fp in DBG.extras:
-            print(msg, file=fp)
+        try:
+            print(msg, file=DBG.sink)
+            for fp in DBG.extras:
+                print(msg, file=fp)
+        except ValueError:
+            DBG.active = False
 
 
 def hexdump(data: bytes) -> None:
