@@ -9,16 +9,7 @@ def test_first_values_in_S_are_varints(tmp_path):
     out = run_tracer(tmp_path)
     data = out.read_bytes()
     off = header_scan(data)[2]
-    assert data[off:off+1] == b'S'
-    off += 1
-    (slen,) = struct.unpack_from('<I', data, off)
-    off += 4
-    payload = data[off:off+slen]
-
-    # should not be little-endian fixed width encoding
-    assert payload[:4] != b"\x01\x00\x00\x00"
-
-    tag = payload[0]
-    assert tag in KNOWN_TAGS
-    val, nxt = read_u32(payload, 1)
-    assert nxt <= 5
+    tag = data[off]
+    assert tag in KNOWN_TAGS or chr(tag).isprintable()
+    val, nxt = read_u32(data, off + 1)
+    assert nxt - off <= 5

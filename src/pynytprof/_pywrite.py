@@ -30,9 +30,6 @@ def _make_ascii_header(static: str) -> bytes:
     return banner.encode()
 
 
-def _chunk(tok: bytes, payload: bytes) -> bytes:
-    return tok[:1] + len(payload).to_bytes(4, "little") + payload
-
 
 def _debug_write(fh, data: bytes) -> None:
     if DBG.active:
@@ -155,15 +152,15 @@ class Writer:
     def _write_F_chunk(self) -> None:
         if self._fh is None:
             raise ValueError("writer not opened")
-        from .protocol import write_u32
+        from ._proto import encode_u32
 
         payload = bytearray()
         for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1]):
-            payload += write_u32(fid)
-            payload += write_u32(self._string_index(path))
+            payload += encode_u32(fid)
+            payload += encode_u32(self._string_index(path))
         payload = bytes(payload)
         self._write_chunk(b"F", payload)
-        self._offset += 5 + len(payload)
+        self._offset += 1 + len(payload)
         self._payloads[b"F"] = bytearray()
 
     def _write_header(self) -> None:
@@ -257,12 +254,10 @@ class Writer:
                 if dec:
                     log("       preview=" + " ".join(dec))
         _debug_write(self._fh, tag)
-        _debug_write(self._fh, struct.pack("<I", len(payload)))
         if payload:
             _debug_write(self._fh, payload)
         if DBG.active:
             self._buffer.extend(tag)
-            self._buffer.extend(struct.pack("<I", len(payload)))
             if payload:
                 self._buffer.extend(payload)
             self._chunk_meta.append((tag.decode(), self._offset, len(payload)))
@@ -292,7 +287,7 @@ class Writer:
         payload += encode_u32(fid)
         payload += encode_u32(line)
         self._write_chunk(b"T", bytes(payload))
-        self._offset += 5 + len(payload)
+        self._offset += 1 + len(payload)
 
     def end_profile(self) -> None:
         """Finalize and close the output."""
@@ -339,25 +334,25 @@ class Writer:
                     ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
                 )
 
-        from .protocol import write_u32
+        from ._proto import encode_u32
 
         if self._line_hits:
             buf = bytearray()
             for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                buf += write_u32(fid)
-                buf += write_u32(line)
-                buf += write_u32(calls)
+                buf += encode_u32(fid)
+                buf += encode_u32(line)
+                buf += encode_u32(calls)
                 buf += struct.pack("<QQ", inc, exc)
             self._payloads[b"S"].extend(buf)
 
         if self._stmt_records and not self._payloads[b"D"]:
-            from .protocol import write_u32
+            from ._proto import encode_u32
 
             buf = bytearray()
             for fid, line, dur in self._stmt_records:
                 buf.append(1)
-                buf += write_u32(fid)
-                buf += write_u32(line)
+                buf += encode_u32(fid)
+                buf += encode_u32(line)
                 buf += struct.pack("<Q", dur)
             buf.append(0)
             self._payloads[b"D"] = buf
@@ -374,7 +369,7 @@ class Writer:
         # emit S chunk first
         s_payload = bytes(self._payloads.get(b"S", b""))
         self._write_chunk(b"S", s_payload)
-        self._offset += 5 + len(s_payload)
+        self._offset += 1 + len(s_payload)
 
         # emit F chunk built from registered files
         if self._file_ids and not self._payloads[b"F"]:
@@ -382,15 +377,16 @@ class Writer:
         else:
             f_payload = bytes(self._payloads.get(b"F", b""))
             self._write_chunk(b"F", f_payload)
-            self._offset += 5 + len(f_payload)
+            self._offset += 1 + len(f_payload)
 
         for tag in [b"D", b"C"]:
             payload = bytes(self._payloads.get(tag, b""))
             self._write_chunk(tag, payload)
-            self._offset += 5 + len(payload)
-
-        self._write_chunk(b"E", b"")
-        self._offset += 5
+            self._offset += 1 + len(payload)
+        from ._proto import ledouble, encode_u32
+        end_payload = encode_u32(os.getpid()) + ledouble(time.time())
+        self._write_chunk(b"p", end_payload)
+        self._offset += 1 + len(end_payload)
         if DBG.active:
             log("\nDEBUG  CHUNK  off   len")
             for tag, off, l in self._chunk_meta:
@@ -450,21 +446,22 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
         pid = os.getpid()
         ppid = os.getppid()
         tstamp = time.time()
-        payload = struct.pack("<I", pid) + struct.pack("<I", ppid) + struct.pack("<d", tstamp)
+        from ._proto import le32, ledouble, encode_u32
+        payload = le32(pid) + le32(ppid) + ledouble(tstamp)
         assert len(payload) == 16
         f.write(b"P")
         f.write(payload)
 
-        from .protocol import write_u32
 
         s_payload = bytearray()
         for fid, line, calls_v, inc, exc in lines:
-            s_payload += write_u32(fid)
-            s_payload += write_u32(line)
-            s_payload += write_u32(calls_v)
+            s_payload += encode_u32(fid)
+            s_payload += encode_u32(line)
+            s_payload += encode_u32(calls_v)
             s_payload += struct.pack("<QQ", inc // 100, exc // 100)
         s_payload = bytes(s_payload)
-        f.write(_chunk(b"S", s_payload))
+        f.write(b"S")
+        f.write(s_payload)
 
         d_payload = b""
         c_payload = b""
@@ -472,35 +469,40 @@ def write(out_path: str, files, defs, calls, lines, start_ns: int, ticks_per_sec
             if len(defs[0]) == 3:
                 d_buf = bytearray()
                 for sid, flags, name in defs:
-                    d_buf += write_u32(sid)
-                    d_buf += write_u32(flags)
+                    d_buf += encode_u32(sid)
+                    d_buf += encode_u32(flags)
                     d_buf += name.encode() + b"\0"
                 d_payload = bytes(d_buf)
 
                 c_buf = bytearray()
                 for cs, ce, cnt, t, st in calls:
-                    c_buf += write_u32(cs)
-                    c_buf += write_u32(ce)
-                    c_buf += write_u32(cnt)
+                    c_buf += encode_u32(cs)
+                    c_buf += encode_u32(ce)
+                    c_buf += encode_u32(cnt)
                     c_buf += struct.pack("<QQ", t, st)
                 c_payload = bytes(c_buf)
             else:
                 d_buf = bytearray()
                 for sid, fid, sl, el, name in defs:
-                    d_buf += write_u32(sid)
-                    d_buf += write_u32(fid)
-                    d_buf += write_u32(sl)
-                    d_buf += write_u32(el)
+                    d_buf += encode_u32(sid)
+                    d_buf += encode_u32(fid)
+                    d_buf += encode_u32(sl)
+                    d_buf += encode_u32(el)
                     d_buf += name.encode() + b"\0"
                 d_payload = bytes(d_buf)
 
                 c_buf = bytearray()
                 for fid, line, sid, inc, exc in calls:
-                    c_buf += write_u32(fid)
-                    c_buf += write_u32(line)
-                    c_buf += write_u32(sid)
+                    c_buf += encode_u32(fid)
+                    c_buf += encode_u32(line)
+                    c_buf += encode_u32(sid)
                     c_buf += struct.pack("<QQ", inc // 100, exc // 100)
                 c_payload = bytes(c_buf)
-        f.write(_chunk(b"D", d_payload))
-        f.write(_chunk(b"C", c_payload))
-        f.write(_chunk(b"E", b""))
+        f.write(b"D")
+        f.write(d_payload)
+        f.write(b"C")
+        f.write(c_payload)
+        end_payload = encode_u32(pid) + ledouble(time.time())
+        f.write(b"p")
+        f.write(end_payload)
+
