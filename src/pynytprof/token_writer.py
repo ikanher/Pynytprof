@@ -25,8 +25,10 @@ def output_str_py(val: bytes | str, utf8: bool = False) -> bytes:
 
 class TokenWriter:
     def write_p_record(self, pid: int, ppid: int, t: float) -> bytes:
-        payload = struct.pack("<I", pid)
-        payload += struct.pack("<I", ppid)
+        from .encoding import encode_u32
+
+        payload = encode_u32(pid)
+        payload += encode_u32(ppid)
         payload += struct.pack("<d", t)
         return b"P" + payload
 

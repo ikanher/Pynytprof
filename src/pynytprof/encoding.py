@@ -7,19 +7,19 @@ def encode_u32(n: int) -> bytes:
     if n < 0x80:
         return bytes([n])
     if n < 0x4000:
-        return bytes([(n >> 7) | 0x80, n & 0x7F])
+        return bytes([(n >> 8) | 0x80, n & 0xFF])
     if n < 0x200000:
         return bytes([
-            (n >> 14) | 0xC0,
-            ((n >> 7) & 0x7F) | 0x80,
-            n & 0x7F,
+            (n >> 16) | 0xC0,
+            (n >> 8) & 0xFF,
+            n & 0xFF,
         ])
     if n < 0x10000000:
         return bytes([
-            (n >> 21) | 0xE0,
-            ((n >> 14) & 0x7F) | 0x80,
-            ((n >> 7) & 0x7F) | 0x80,
-            n & 0x7F,
+            (n >> 24) | 0xE0,
+            (n >> 16) & 0xFF,
+            (n >> 8) & 0xFF,
+            n & 0xFF,
         ])
     return b'\xFF' + n.to_bytes(4, 'big')
 

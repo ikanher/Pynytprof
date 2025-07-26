@@ -1,6 +1,8 @@
 from pathlib import Path
 import struct
 
+from .protocol import read_u32
+
 __all__ = ["read", "header_scan"]
 
 _MAGIC = b"NYTPROF\0"
@@ -74,7 +76,10 @@ def header_scan(data: bytes) -> tuple[int, int, int]:
     if nv_size is None or nv_size not in {8, 16}:
         raise ValueError("missing or unsupported nv_size")
 
-    first_token_off = p_pos + 1 + 4 + 4 + nv_size
+    off = p_pos + 1
+    _, off = read_u32(data, off)
+    _, off = read_u32(data, off)
+    first_token_off = off + nv_size
     return header_len, p_pos, first_token_off
 
 
@@ -148,6 +153,7 @@ def read(path: str) -> dict:
         "records": [],
     }
     first = True
+    nv_size = attrs.get("nv_size", 8)
     while offset < len(data):
         tok = data[offset : offset + 1]
         if not tok:
@@ -155,11 +161,14 @@ def read(path: str) -> dict:
         tok = tok.decode()
         offset += 1
         if first and tok == "P":
-            if offset + 16 > len(data):
+            start = offset
+            pid, offset = read_u32(data, offset)
+            ppid, offset = read_u32(data, offset)
+            if offset + nv_size > len(data):
                 raise ValueError("truncated payload")
-            payload = data[offset : offset + 16]
-            offset += 16
-            length = 16
+            payload = data[start : offset + nv_size]
+            offset += nv_size
+            length = len(payload)
             first = False
         else:
             if tok == "E":
@@ -184,9 +193,12 @@ def read(path: str) -> dict:
                 k, v = item.split(b"=", 1)
                 result["attrs"][k.decode()] = int(v)
         elif tok == "P":
-            if len(payload) != 16:
+            p = 0
+            pid, p = read_u32(payload, p)
+            ppid, p = read_u32(payload, p)
+            if p + nv_size != len(payload):
                 raise ValueError("bad P length")
-            pid, ppid, ts = struct.unpack_from("<IId", payload, 0)
+            ts = struct.unpack_from("<d", payload, p)[0]
             result["attrs"].update({"pid": pid, "ppid": ppid, "timestamp": ts})
         elif tok == "F":
             if length % 8 != 0:
