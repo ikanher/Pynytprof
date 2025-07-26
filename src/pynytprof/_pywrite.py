@@ -12,7 +12,13 @@ import re
 
 from ._debug import DBG, log, hexdump_around
 
-from .token_writer import TokenWriter
+from .nytp_stream import (
+    write_process_start,
+    write_process_end,
+    write_new_fid,
+    write_src_line,
+    write_time_line,
+)
 
 try:  # Python 3.9+
     _version_text = resources.files(__package__).joinpath("nytp_version.h").read_text()
@@ -64,27 +70,20 @@ class Writer:
         self.script_path = str(Path(script_path or sys.argv[0]).resolve())
         self._line_hits: dict[tuple[int, int], tuple[int, int, int]] = {}
         self._stmt_records: list[tuple[int, int, int]] = []
-        self._payloads: dict[bytes, bytearray] = {
-            b"F": bytearray(),
-            b"S": bytearray(),
-            b"D": bytearray(),
-            b"C": bytearray(),
-        }
+        # token bytes accumulated when tracing
+        self._payloads: dict[bytes, bytearray] = {}
         self.nv_size = struct.calcsize("d")
         self._file_ids: dict[str, int] = {}
         self._next_fid = 1
         self._register_file(self.script_path)
         self._strings: dict[str, int] = {}
-        self._offset = 0
-        self._tok = TokenWriter()
         self._trace_fp = None
+        self._started = False
         if DBG.active:
             log("Writer initialized with empty buffers")
             self._buffer = bytearray()
-            self._chunk_meta: list[tuple[str, int, int]] = []
         else:
             self._buffer = bytearray()
-            self._chunk_meta = []
 
     def _string_index(self, s: str) -> int:
         idx = self._strings.get(s)
@@ -113,7 +112,7 @@ class Writer:
         if tstamp is None:
             tstamp = time.time()
         assert self.nv_size == struct.calcsize("d")
-        payload = self._tok.write_p_record(pid, ppid, tstamp)
+        payload = write_process_start(pid, ppid, tstamp)
         _debug_write(self._fh, payload)
         if DBG.active:
             self._buffer.extend(payload)
@@ -122,7 +121,6 @@ class Writer:
             ppid_v = int.from_bytes(buf[5:9], "little")
             ts = struct.unpack("<d", buf[9:17])[0]
             log(f"P-rec  pid={pid_v} ppid={ppid_v} ts={ts}  raw={buf.hex(' ')}")
-        self._offset += len(payload)
 
     def _emit_new_fid(
         self,
@@ -138,7 +136,7 @@ class Writer:
         if self._fh is None:
             raise ValueError("writer not opened")
 
-        payload = self._tok.write_new_fid(
+        payload = write_new_fid(
             fid,
             eval_fid,
             eval_line_num,
@@ -146,25 +144,12 @@ class Writer:
             size,
             mtime,
             name,
+            utf8,
         )
         _debug_write(self._fh, payload)
         if DBG.active:
             self._buffer.extend(payload)
-        self._offset += len(payload)
 
-    def _write_F_chunk(self) -> None:
-        if self._fh is None:
-            raise ValueError("writer not opened")
-        from .protocol import write_u32
-
-        payload = bytearray()
-        for path, fid in sorted(self._file_ids.items(), key=lambda x: x[1]):
-            payload += write_u32(fid)
-            payload += write_u32(self._string_index(path))
-        payload = bytes(payload)
-        self._write_chunk(b"F", payload)
-        self._offset += 5 + len(payload)
-        self._payloads[b"F"] = bytearray()
 
     def _write_header(self) -> None:
         timestamp = format_datetime(datetime.datetime.now(datetime.timezone.utc))
@@ -211,61 +196,15 @@ class Writer:
         _debug_write(self._fh, banner)
         if DBG.active:
             self._buffer.extend(banner)
-        self._offset = len(banner)
 
         self._write_raw_P()
-        first_token_offset = self._offset
         if DBG.active:
             expected_stream_off = len(banner) + 1 + 4 + 4 + self.nv_size
             log("wrote raw P record (17 B)")
-            log(f"first_token_offset={first_token_offset}")
             log(
                 f"header_len={len(banner)} nv_size={self.nv_size} expected_stream_off={expected_stream_off}"
             )
 
-    def _write_chunk(self, tag: bytes, payload: bytes) -> None:
-        assert len(tag) == 1
-        if self._fh is None:
-            raise ValueError("writer not opened")
-        if DBG.active:
-            offset = self._fh.tell()
-            from hashlib import sha256
-
-            digest = sha256(payload).hexdigest() if payload else ""
-            first16 = payload[:16].hex()
-            last16 = payload[-16:].hex() if payload else ""
-            log(f"write tag={tag.decode()} len={len(payload)}")
-            log(f"       offset=0x{offset:x}")
-            log(f"       sha256={digest}")
-            if payload:
-                log(f"       first16={first16} last16={last16}")
-                from .protocol import read_u32
-                from .tags import KNOWN_TAGS
-
-                dec = []
-                off = 0
-                limit = min(len(payload), 32)
-                while off < limit:
-                    tag_byte = payload[off]
-                    off += 1
-                    if tag_byte not in KNOWN_TAGS:
-                        break
-                    val, off = read_u32(payload, off)
-                    dec.append(f"[tag=0x{tag_byte:02x}, ints=[{val}]]")
-                    if off >= limit:
-                        break
-                if dec:
-                    log("       preview=" + " ".join(dec))
-        _debug_write(self._fh, tag)
-        _debug_write(self._fh, struct.pack("<I", len(payload)))
-        if payload:
-            _debug_write(self._fh, payload)
-        if DBG.active:
-            self._buffer.extend(tag)
-            self._buffer.extend(struct.pack("<I", len(payload)))
-            if payload:
-                self._buffer.extend(payload)
-            self._chunk_meta.append((tag.decode(), self._offset, len(payload)))
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
@@ -278,34 +217,57 @@ class Writer:
             if self._path is None:
                 raise ValueError("no output path specified")
             self._fh = open(self._path, "wb")
-        if self._offset == 0:
+        if not self._started:
             self._write_header()
+            self._started = True
+
+    def add_file(
+        self,
+        fid: int,
+        name: str | bytes,
+        size: int,
+        mtime: int,
+        flags: int,
+        eval_fid: int,
+        eval_line: int,
+    ) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        payload = write_new_fid(
+            fid,
+            eval_fid,
+            eval_line,
+            flags,
+            size,
+            mtime,
+            name,
+        )
+        _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(payload)
+
+    def add_src_line(self, fid: int, line: int, text: str | bytes) -> None:
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        payload = write_src_line(fid, line, text)
+        _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(payload)
 
     def write_time_line(self, fid: int, line: int, elapsed: int, overflow: int) -> None:
         """Emit a minimal time line record (T chunk)."""
         if self._fh is None:
             raise ValueError("writer not opened")
-        from .encoding import encode_i32, encode_u32
-
-        payload = bytearray()
-        payload += encode_i32(elapsed)
-        payload += encode_u32(fid)
-        payload += encode_u32(line)
-        self._write_chunk(b"T", bytes(payload))
-        self._offset += 5 + len(payload)
+        payload = write_time_line(elapsed, overflow, fid, line)
+        _debug_write(self._fh, payload)
+        if DBG.active:
+            self._buffer.extend(payload)
 
     def end_profile(self) -> None:
         """Finalize and close the output."""
         self.close()
 
-    def write_chunk(self, token: bytes, payload: bytes) -> None:
-        tag = token[:1]
-        if tag in self._payloads:
-            if tag == b"D" and not payload:
-                return
-            self._payloads[tag].extend(payload)
-        elif tag == b"E":
-            pass
+
 
     def __enter__(self):
         if self._fh is None:
@@ -315,7 +277,9 @@ class Writer:
         if DBG.active and self._path is not None:
             self._trace_fp = open(str(self._path) + ".trace.txt", "w")
             DBG.extras.append(self._trace_fp)
-        self._write_header()
+        if not self._started:
+            self._write_header()
+            self._started = True
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -325,78 +289,11 @@ class Writer:
         if not self._fh:
             return
 
-        self._register_file(self.script_path)
-
-        if self.tracer is not None:
-
-            def ns2ticks(ns: int) -> int:
-                return ns // 100
-
-            for line, calls in self.tracer._line_hits.items():
-                self._line_hits[(0, line)] = (
-                    calls,
-                    ns2ticks(self.tracer._line_time_ns[line]),
-                    ns2ticks(self.tracer._exc_time_ns.get(line, 0)),
-                )
-
-        from .protocol import write_u32
-
-        if self._line_hits:
-            buf = bytearray()
-            for (fid, line), (calls, inc, exc) in self._line_hits.items():
-                buf += write_u32(fid)
-                buf += write_u32(line)
-                buf += write_u32(calls)
-                buf += struct.pack("<QQ", inc, exc)
-            self._payloads[b"S"].extend(buf)
-
-        if self._stmt_records and not self._payloads[b"D"]:
-            from .protocol import write_u32
-
-            buf = bytearray()
-            for fid, line, dur in self._stmt_records:
-                buf.append(1)
-                buf += write_u32(fid)
-                buf += write_u32(line)
-                buf += struct.pack("<Q", dur)
-            buf.append(0)
-            self._payloads[b"D"] = buf
-        elif not self._payloads[b"D"]:
-            self._payloads[b"D"] = bytearray()
-
+        end_ts = time.time()
+        payload = write_process_end(os.getpid(), end_ts)
+        _debug_write(self._fh, payload)
         if DBG.active:
-            summary = {
-                t.decode(): len(self._payloads.get(t, b"")) for t in [b"S", b"F", b"D", b"C"]
-            }
-            summary["E"] = 0
-            log(f"FINAL CHUNKS: {summary}")
-
-        # emit S chunk first
-        s_payload = bytes(self._payloads.get(b"S", b""))
-        self._write_chunk(b"S", s_payload)
-        self._offset += 5 + len(s_payload)
-
-        # emit F chunk built from registered files
-        if self._file_ids and not self._payloads[b"F"]:
-            self._write_F_chunk()
-        else:
-            f_payload = bytes(self._payloads.get(b"F", b""))
-            self._write_chunk(b"F", f_payload)
-            self._offset += 5 + len(f_payload)
-
-        for tag in [b"D", b"C"]:
-            payload = bytes(self._payloads.get(tag, b""))
-            self._write_chunk(tag, payload)
-            self._offset += 5 + len(payload)
-
-        self._write_chunk(b"E", b"")
-        self._offset += 5
-        if DBG.active:
-            log("\nDEBUG  CHUNK  off   len")
-            for tag, off, l in self._chunk_meta:
-                log(f"      {tag:<2}   0x{off:06x} {l}")
-            if DBG.at_off:
-                hexdump_around(bytes(self._buffer), DBG.at_off)
+            self._buffer.extend(payload)
         self._fh.close()
         self._fh = None
         if DBG.active and self._trace_fp:
