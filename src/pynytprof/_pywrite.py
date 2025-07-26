@@ -50,6 +50,10 @@ class Writer:
         script_path: str | None = None,
         fp=None,
     ) -> None:
+        if path is not None and not isinstance(path, (str, os.PathLike)):
+            # Allow passing an open file handle as the first argument
+            fp = path
+            path = None
         self._path = Path(path) if path is not None else None
         self._fh = fp
         self.start_time = time.time_ns() if start_ns is None else start_ns
@@ -265,6 +269,34 @@ class Writer:
 
     def record_line(self, fid: int, line: int, calls: int, inc: int, exc: int) -> None:
         self._line_hits[(fid, line)] = (calls, inc, exc)
+
+    # ------------------------------------------------------------------
+    # Minimal profiling helpers used by tests
+    def start_profile(self) -> None:
+        """Write the header and initial P record if not already done."""
+        if self._fh is None:
+            if self._path is None:
+                raise ValueError("no output path specified")
+            self._fh = open(self._path, "wb")
+        if self._offset == 0:
+            self._write_header()
+
+    def write_time_line(self, fid: int, line: int, elapsed: int, overflow: int) -> None:
+        """Emit a minimal time line record (T chunk)."""
+        if self._fh is None:
+            raise ValueError("writer not opened")
+        from .encoding import encode_i32, encode_u32
+
+        payload = bytearray()
+        payload += encode_i32(elapsed)
+        payload += encode_u32(fid)
+        payload += encode_u32(line)
+        self._write_chunk(b"T", bytes(payload))
+        self._offset += 5 + len(payload)
+
+    def end_profile(self) -> None:
+        """Finalize and close the output."""
+        self.close()
 
     def write_chunk(self, token: bytes, payload: bytes) -> None:
         tag = token[:1]
